@@ -212,11 +212,11 @@ function GatekeeperReturns() {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 h-full min-h-0">
+    <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 h-full min-h-0 min-w-0 overflow-x-hidden">
       {/* LEFT — Currently Checked Out */}
-      <section>
+      <section className="min-w-0">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-semibold flex items-center gap-2">
+          <h2 className="min-w-0 font-semibold flex items-center gap-2">
             <Package className="h-4 w-4" /> Fixtures Currently Out
             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/15 text-primary font-semibold">{rows.length}</span>
           </h2>
@@ -242,13 +242,13 @@ function GatekeeperReturns() {
               <div key={r.id}
                 className={`rounded-xl border border-border bg-card p-3 ${d.level === "over" ? "bg-red-50/40" : ""}`}>
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-mono text-xs text-muted-foreground">{r.fixtures?.fixture_id}</div>
+                  <div className="min-w-0 break-words font-mono text-xs text-muted-foreground">{r.fixtures?.fixture_id}</div>
                   <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-red-100 text-red-800">Checked Out</span>
                 </div>
-                <div className="font-medium text-sm mt-0.5">{r.fixtures?.name}</div>
+                <div className="font-medium text-sm mt-0.5 break-words">{r.fixtures?.name}</div>
                 <div className="text-xs text-muted-foreground">Model: {r.fixtures?.model_number || "—"}</div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1"><MapPin className="h-3 w-3" /> {locationPathText(r.fixtures) ?? "—"}</div>
-                <div className="mt-2 text-xs">👤 {r.worker?.full_name} ({r.worker?.employee_id})</div>
+                <div className="text-xs text-muted-foreground flex items-start gap-1 mt-1"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /> <span className="min-w-0 break-words">{locationPathText(r.fixtures) ?? "—"}</span></div>
+                <div className="mt-2 text-xs break-words">👤 {r.worker?.full_name} ({r.worker?.employee_id})</div>
                 <div className="mt-1 text-xs flex items-center gap-1.5">
                   <span className={`h-2 w-2 rounded-full ${dot}`} />
                   <span className={dur}>Out for {d.text}</span>
@@ -260,7 +260,7 @@ function GatekeeperReturns() {
       </section>
 
       {/* RIGHT — Scanner */}
-      <section className="space-y-4">
+      <section className="min-w-0 space-y-4">
         <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
           <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><RotateCcw className="h-4 w-4 text-primary" /> Return Scanner</h3>
 
@@ -313,7 +313,31 @@ function GatekeeperReturns() {
         {/* Today's returns log */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/40">Today's returns</div>
-          <div className="overflow-x-auto scrollbar-hidden">
+          <div className="sm:hidden divide-y divide-border">
+            {todays.length === 0 && (
+              <div className="p-3 text-center text-xs text-muted-foreground">No returns yet today</div>
+            )}
+            {todays.map((r) => (
+              <div key={r.id} className="p-3 text-xs">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-mono text-[10px] text-muted-foreground break-words">{r.fixture_id}</div>
+                    <div className="font-medium break-words">{r.fixture_name}</div>
+                  </div>
+                  <div className="shrink-0 text-right text-muted-foreground">
+                    {new Date(r.returned_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-2 gap-y-1 text-muted-foreground">
+                  <span>Worker</span>
+                  <span className="min-w-0 text-foreground break-words">{r.worker_name}</span>
+                  <span>Out for</span>
+                  <span className="text-foreground">{r.duration}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="hidden sm:block overflow-x-auto scrollbar-hidden">
             <table className="w-full min-w-[520px] text-xs">
               <thead className="bg-secondary/30">
                 <tr>
