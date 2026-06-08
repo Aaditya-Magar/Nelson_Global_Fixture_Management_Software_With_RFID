@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { useZxing } from "react-zxing";
+import { useEffect, useState } from "react";
 import { X, Camera } from "lucide-react";
+import { useAutoStopScanner } from "@/lib/scanner-camera";
 
 export function ScannerButton({ onResult }: { onResult: (text: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -20,15 +20,7 @@ export function ScannerButton({ onResult }: { onResult: (text: string) => void }
 }
 
 function ScannerModal({ onClose, onResult }: { onClose: () => void; onResult: (text: string) => void }) {
-  const handledRef = useRef(false);
-  const { ref } = useZxing({
-    onDecodeResult: (r) => {
-      if (handledRef.current) return;
-      handledRef.current = true;
-      onResult(r.getText());
-    },
-    paused: false,
-  });
+  const { ref } = useAutoStopScanner(onResult);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -42,7 +34,7 @@ function ScannerModal({ onClose, onResult }: { onClose: () => void; onResult: (t
         <X className="h-5 w-5" />
       </button>
       <div className="scanner-camera-stage">
-        <video ref={ref} />
+        <video ref={ref} autoPlay playsInline muted />
         <div className="scanner-viewfinder" aria-hidden="true" />
       </div>
       <div className="text-center text-white/80 text-sm pb-6">Point camera at a barcode or QR code</div>

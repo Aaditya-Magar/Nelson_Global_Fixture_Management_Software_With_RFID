@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, CheckCircle2, AlertTriangle, XCircle, X, MapPin, Package, RotateCcw, Search } from "lucide-react";
-import { useZxing } from "react-zxing";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { sanitizeText } from "@/lib/sanitize";
 import { playSuccessBeep, playErrorSound } from "@/lib/gate-audio";
 import { FIXTURE_LOCATION_SELECT, locationPathText, type FixtureWithLocation } from "@/lib/fixtures";
+import { useAutoStopScanner } from "@/lib/scanner-camera";
 
 export const Route = createFileRoute("/gatekeeper/returns")({
   component: GatekeeperReturns,
@@ -380,9 +380,6 @@ function GatekeeperReturns() {
 }
 
 function CamView({ onResult }: { onResult: (t: string) => void }) {
-  const handled = useRef(false);
-  const { ref } = useZxing({
-    onDecodeResult: (r) => { if (handled.current) return; handled.current = true; onResult(r.getText()); },
-  });
-  return <video ref={ref} />;
+  const { ref } = useAutoStopScanner(onResult);
+  return <video ref={ref} autoPlay playsInline muted />;
 }

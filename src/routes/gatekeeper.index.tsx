@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Camera, Lock, MapPin, DoorOpen, X, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
-import { useZxing } from "react-zxing";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { sanitizeText } from "@/lib/sanitize";
@@ -10,6 +9,7 @@ import { FIXTURE_LOCATION_SELECT, locationPathText, type FixtureWithLocation } f
 import { FixtureLocationBadge } from "@/components/FixtureLocationBadge";
 import { useI18n } from "@/lib/i18n";
 import { playSuccessBeep, playGateOpenSound, playErrorSound } from "@/lib/gate-audio";
+import { useAutoStopScanner } from "@/lib/scanner-camera";
 
 export const Route = createFileRoute("/gatekeeper/")({
   component: GatekeeperHome,
@@ -325,10 +325,7 @@ function useScanInput(opts: {
 }
 
 function CameraScanModal({ onClose, onResult }: { onClose: () => void; onResult: (text: string) => void }) {
-  const handled = useRef(false);
-  const { ref } = useZxing({
-    onDecodeResult: (r) => { if (handled.current) return; handled.current = true; onResult(r.getText()); },
-  });
+  const { ref } = useAutoStopScanner(onResult);
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
@@ -339,7 +336,7 @@ function CameraScanModal({ onClose, onResult }: { onClose: () => void; onResult:
         <X className="h-5 w-5" />
       </button>
       <div className="scanner-camera-stage">
-        <video ref={ref} />
+        <video ref={ref} autoPlay playsInline muted />
         <div className="scanner-viewfinder" aria-hidden="true" />
       </div>
       <div className="text-center text-white/80 text-sm pb-6">Point camera at barcode / QR</div>
