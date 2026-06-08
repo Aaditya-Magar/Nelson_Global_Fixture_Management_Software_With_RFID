@@ -16,16 +16,6 @@ declare global {
 const supportedFormats = [
   BarcodeFormat.QR_CODE,
   BarcodeFormat.CODE_128,
-  BarcodeFormat.CODE_39,
-  BarcodeFormat.CODE_93,
-  BarcodeFormat.EAN_13,
-  BarcodeFormat.EAN_8,
-  BarcodeFormat.UPC_A,
-  BarcodeFormat.UPC_E,
-  BarcodeFormat.ITF,
-  BarcodeFormat.CODABAR,
-  BarcodeFormat.DATA_MATRIX,
-  BarcodeFormat.PDF_417,
 ];
 
 const scannerHints = new Map<DecodeHintType, unknown>([
@@ -36,17 +26,9 @@ const scannerHints = new Map<DecodeHintType, unknown>([
 const nativeFormats = [
   "qr_code",
   "code_128",
-  "code_39",
-  "code_93",
-  "ean_13",
-  "ean_8",
-  "upc_a",
-  "upc_e",
-  "itf",
-  "codabar",
-  "data_matrix",
-  "pdf417",
 ];
+
+const scanIntervalMs = 40;
 
 const scannerConstraints: MediaStreamConstraints = {
   audio: false,
@@ -65,7 +47,7 @@ export function useAutoStopScanner(onResult: (text: string) => void) {
     let active = true;
     let stream: MediaStream | null = null;
     let nativeTimer: number | null = null;
-    const reader = new BrowserMultiFormatReader(scannerHints, 100);
+    const reader = new BrowserMultiFormatReader(scannerHints, scanIntervalMs);
 
     const stop = () => {
       active = false;
@@ -151,7 +133,7 @@ function startNativeDetector(
         return;
       }
     }
-    setTimer(window.setTimeout(detect, 100));
+    setTimer(window.setTimeout(detect, scanIntervalMs));
   };
 
   detect();
