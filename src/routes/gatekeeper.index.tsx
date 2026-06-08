@@ -185,7 +185,7 @@ function GatekeeperHome() {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <div className="grid lg:grid-cols-2 gap-4 lg:gap-6">
       <section>
         <h2 className="font-semibold mb-3">{t("gk.queue")}</h2>
         <div className="space-y-3">
@@ -219,13 +219,13 @@ function QueueCard({ req, isActive, onStart }: { req: ReqRow; isActive: boolean;
   const { t } = useI18n();
   const elapsed = Math.round((Date.now() - new Date(req.created_at).getTime()) / 60000);
   return (
-    <div className={`rounded-xl border p-4 ${isActive ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+    <div className={`rounded-xl border p-3 sm:p-4 ${isActive ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
       <div className="flex justify-between items-start gap-3">
-        <div>
-          <div className="font-medium">{req.worker?.full_name}</div>
+        <div className="min-w-0">
+          <div className="font-medium truncate">{req.worker?.full_name}</div>
           <div className="text-xs text-muted-foreground">{req.worker?.employee_id} · {req.worker?.department ?? "—"}</div>
         </div>
-        <span className="text-[10px] uppercase font-semibold px-2 py-1 rounded bg-secondary text-secondary-foreground">{req.status}</span>
+        <span className="shrink-0 text-[10px] uppercase font-semibold px-2 py-1 rounded bg-secondary text-secondary-foreground">{req.status}</span>
       </div>
       <ul className="mt-3 space-y-1">
         {req.request_items.map((i) => i.fixtures && (
@@ -235,9 +235,9 @@ function QueueCard({ req, isActive, onStart }: { req: ReqRow; isActive: boolean;
           </li>
         ))}
       </ul>
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
         <div className="text-xs text-muted-foreground">{elapsed}m ago</div>
-        <button onClick={onStart} className={`text-xs font-medium px-3 py-1.5 rounded ${isActive ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
+        <button onClick={onStart} className={`text-xs font-medium px-3 py-2 sm:py-1.5 rounded ${isActive ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
           {isActive ? "Active" : t("gk.start_preparing")}
         </button>
       </div>
@@ -248,16 +248,16 @@ function QueueCard({ req, isActive, onStart }: { req: ReqRow; isActive: boolean;
 function ActiveRequestCard({ req, scan1Done, onCancel }: { req: ReqRow | null; scan1Done: boolean; onCancel: () => void }) {
   if (!req) {
     return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+      <div className="rounded-xl border border-dashed border-border p-4 sm:p-6 text-center text-sm text-muted-foreground">
         Select a request from the queue to begin
       </div>
     );
   }
   const elapsed = Math.round((Date.now() - new Date(req.created_at).getTime()) / 60000);
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
           <h3 className="font-semibold text-sm">Active Request</h3>
           <span className="text-[10px] px-2 py-0.5 rounded bg-blue-100 text-blue-800 font-semibold">{elapsed}m ago</span>
         </div>
@@ -389,7 +389,7 @@ function ScanStation1({ active, onMatch, onWrong, done }: {
   const borderCls = done ? "border-green-500" : result?.kind === "wrong" ? "border-red-500" : "border-border";
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4">
+    <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-3">
         <MapPin className="h-4 w-4 text-amber-600" />
         <h3 className="font-semibold text-sm">Step 1 — Rack Scanner</h3>
@@ -402,12 +402,12 @@ function ScanStation1({ active, onMatch, onWrong, done }: {
           onKeyDown={input.onKeyDown}
           disabled={!active || done}
           placeholder="Scan fixture barcode or QR at the rack"
-          className={`flex-1 rounded-md bg-background border px-3 py-3 text-base outline-none ${borderCls} disabled:opacity-50`}
+          className={`min-w-0 flex-1 rounded-md bg-background border px-3 py-3 text-base outline-none ${borderCls} disabled:opacity-50`}
           maxLength={100}
           autoFocus
         />
         <button type="button" onClick={() => setCam(true)} disabled={!active || done}
-          className="rounded-md bg-primary text-primary-foreground p-2.5 disabled:opacity-50" aria-label="Camera">
+          className="shrink-0 rounded-md bg-primary text-primary-foreground p-2.5 disabled:opacity-50" aria-label="Camera">
           <Camera className="h-5 w-5" />
         </button>
       </div>
@@ -430,7 +430,7 @@ function ScanStation1({ active, onMatch, onWrong, done }: {
       {result?.kind === "wrong" && (
         <div className="mt-3 rounded-md bg-red-50 border-2 border-red-500 text-red-900 p-4">
           <div className="flex items-center gap-2 font-bold"><XCircle className="h-5 w-5" /> WRONG FIXTURE SCANNED</div>
-          <div className="mt-2 text-sm grid grid-cols-[80px_1fr] gap-y-1">
+          <div className="mt-2 text-sm grid grid-cols-1 sm:grid-cols-[80px_1fr] gap-y-1">
             <div className="font-semibold">You scanned:</div>
             <div className="font-mono">{result.scanned} {result.scannedFx ? `— ${result.scannedFx.name}` : ""}</div>
             <div className="font-semibold">Expected:</div>
@@ -490,7 +490,7 @@ function ScanStation2({ active, unlocked, onMatch, onWrong }: {
   const borderCls = result?.kind === "ok" ? "border-green-500" : result?.kind === "wrong" ? "border-red-500" : "border-border";
 
   return (
-    <div className="relative rounded-xl border border-border bg-card p-4">
+    <div className="relative rounded-xl border border-border bg-card p-3 sm:p-4">
       <div className="flex items-center gap-2 mb-3">
         <DoorOpen className="h-4 w-4 text-blue-600" />
         <h3 className="font-semibold text-sm">Step 2 — Gate Scanner</h3>
@@ -504,11 +504,11 @@ function ScanStation2({ active, unlocked, onMatch, onWrong }: {
           onKeyDown={input.onKeyDown}
           disabled={!unlocked || result?.kind === "ok"}
           placeholder="Scan fixture barcode or QR at the gate"
-          className={`flex-1 rounded-md bg-background border-2 px-3 py-4 text-lg outline-none ${borderCls} disabled:opacity-60`}
+          className={`min-w-0 flex-1 rounded-md bg-background border-2 px-3 py-3 sm:py-4 text-base sm:text-lg outline-none ${borderCls} disabled:opacity-60`}
           maxLength={100}
         />
         <button type="button" onClick={() => setCam(true)} disabled={!unlocked || result?.kind === "ok"}
-          className="rounded-md bg-primary text-primary-foreground p-2.5 disabled:opacity-50" aria-label="Camera">
+          className="shrink-0 rounded-md bg-primary text-primary-foreground p-2.5 disabled:opacity-50" aria-label="Camera">
           <Camera className="h-5 w-5" />
         </button>
       </div>
@@ -529,7 +529,7 @@ function ScanStation2({ active, unlocked, onMatch, onWrong }: {
       {result?.kind === "wrong" && (
         <div className="mt-3 rounded-md bg-red-50 border-2 border-red-500 text-red-900 p-4">
           <div className="flex items-center gap-2 font-bold"><XCircle className="h-5 w-5" /> GATE LOCKED — WRONG FIXTURE</div>
-          <div className="mt-2 text-sm grid grid-cols-[80px_1fr] gap-y-1">
+          <div className="mt-2 text-sm grid grid-cols-1 sm:grid-cols-[80px_1fr] gap-y-1">
             <div className="font-semibold">You scanned:</div><div className="font-mono">{result.scanned}</div>
             <div className="font-semibold">Expected:</div><div className="font-mono">{result.expectedCode}</div>
           </div>

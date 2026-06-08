@@ -120,3 +120,15 @@
 .scrollbar-hidden::-webkit-scrollbar {
   display: none;
 }
+
+/* Hide any visible scrollbars inside the gatekeeper dashboard only */
+.gatekeeper-root,
+.gatekeeper-root * {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.gatekeeper-root::-webkit-scrollbar,
+.gatekeeper-root *::-webkit-scrollbar {
+  display: none;
+  width: 0;
+}

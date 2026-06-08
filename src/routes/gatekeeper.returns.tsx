@@ -212,7 +212,7 @@ function GatekeeperReturns() {
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6 h-full min-h-0">
+    <div className="grid lg:grid-cols-2 gap-4 lg:gap-6 h-full min-h-0">
       {/* LEFT — Currently Checked Out */}
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -226,7 +226,7 @@ function GatekeeperReturns() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search fixture, model, worker…"
             className="w-full pl-9 pr-3 py-2 rounded-md bg-background border border-border text-sm" />
         </div>
-        <div className="space-y-2 max-h-[calc(100vh-17rem)] overflow-y-auto scrollbar-hidden pr-1">
+        <div className="space-y-2 max-h-none lg:max-h-[calc(100vh-17rem)] overflow-y-auto scrollbar-hidden lg:pr-1">
           {filtered.length === 0 && (
             <div className="text-center py-10 text-sm text-muted-foreground rounded-xl border border-dashed border-border">
               <CheckCircle2 className="h-8 w-8 mx-auto text-green-500 mb-2" />
@@ -261,7 +261,7 @@ function GatekeeperReturns() {
 
       {/* RIGHT — Scanner */}
       <section className="space-y-4">
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
           <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><RotateCcw className="h-4 w-4 text-primary" /> Return Scanner</h3>
 
           <div className="mb-3 text-xs text-muted-foreground">Scan any checked out fixture to return it</div>
@@ -273,11 +273,11 @@ function GatekeeperReturns() {
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handle(value); setValue(""); } }}
               placeholder="Scan fixture barcode or QR to return"
-              className="flex-1 rounded-md bg-background border-2 border-border px-3 py-4 text-lg outline-none focus:border-primary"
+              className="min-w-0 flex-1 rounded-md bg-background border-2 border-border px-3 py-3 sm:py-4 text-base sm:text-lg outline-none focus:border-primary"
               maxLength={100}
               autoFocus
             />
-            <button type="button" onClick={() => setCam(true)} className="rounded-md bg-primary text-primary-foreground p-2.5" aria-label="Camera">
+            <button type="button" onClick={() => setCam(true)} className="shrink-0 rounded-md bg-primary text-primary-foreground p-2.5" aria-label="Camera">
               <Camera className="h-5 w-5" />
             </button>
           </div>
@@ -313,27 +313,29 @@ function GatekeeperReturns() {
         {/* Today's returns log */}
         <div className="rounded-xl border border-border bg-card overflow-hidden">
           <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground bg-secondary/40">Today's returns</div>
-          <table className="w-full text-xs">
-            <thead className="bg-secondary/30">
-              <tr>
-                <th className="text-left p-2">Time</th>
-                <th className="text-left p-2">Fixture</th>
-                <th className="text-left p-2">Worker</th>
-                <th className="text-left p-2">Out for</th>
-              </tr>
-            </thead>
-            <tbody>
-              {todays.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">No returns yet today</td></tr>}
-              {todays.map((r) => (
-                <tr key={r.id} className="border-t border-border">
-                  <td className="p-2 whitespace-nowrap">{new Date(r.returned_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
-                  <td className="p-2"><div className="font-mono text-[10px] text-muted-foreground">{r.fixture_id}</div><div>{r.fixture_name}</div></td>
-                  <td className="p-2">{r.worker_name}</td>
-                  <td className="p-2">{r.duration}</td>
+          <div className="overflow-x-auto scrollbar-hidden">
+            <table className="w-full min-w-[520px] text-xs">
+              <thead className="bg-secondary/30">
+                <tr>
+                  <th className="text-left p-2">Time</th>
+                  <th className="text-left p-2">Fixture</th>
+                  <th className="text-left p-2">Worker</th>
+                  <th className="text-left p-2">Out for</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {todays.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">No returns yet today</td></tr>}
+                {todays.map((r) => (
+                  <tr key={r.id} className="border-t border-border">
+                    <td className="p-2 whitespace-nowrap">{new Date(r.returned_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</td>
+                    <td className="p-2"><div className="font-mono text-[10px] text-muted-foreground">{r.fixture_id}</div><div>{r.fixture_name}</div></td>
+                    <td className="p-2">{r.worker_name}</td>
+                    <td className="p-2">{r.duration}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
