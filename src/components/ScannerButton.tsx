@@ -41,7 +41,10 @@ function ScannerModal({ onClose, onResult }: { onClose: () => void; onResult: (t
       <button onClick={onClose} className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 text-white" aria-label="Close">
         <X className="h-5 w-5" />
       </button>
-      <video ref={ref} className="flex-1 w-full object-cover" />
+      <div className="scanner-camera-stage">
+        <video ref={ref} />
+        <div className="scanner-viewfinder" aria-hidden="true" />
+      </div>
       <div className="text-center text-white/80 text-sm pb-6">Point camera at a barcode or QR code</div>
     </div>
   );
