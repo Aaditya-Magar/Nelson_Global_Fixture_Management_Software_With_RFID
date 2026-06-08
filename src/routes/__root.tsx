@@ -37,8 +37,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:title", content: "Nelson Fixture Management System" },
       { property: "og:description", content: "Nelson Global fixture tracking system." },
       { name: "twitter:description", content: "Nelson Global fixture tracking system." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b2390df3-712f-4ccd-b8ab-7e7633625881/id-preview-3a12665d--6ff39a64-698c-4ea9-a9cd-5ff47061fd88.lovable.app-1780332710397.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/b2390df3-712f-4ccd-b8ab-7e7633625881/id-preview-3a12665d--6ff39a64-698c-4ea9-a9cd-5ff47061fd88.lovable.app-1780332710397.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:type", content: "website" },
     ],

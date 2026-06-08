@@ -115,6 +115,33 @@ function GatekeeperHome() {
 
   const onGateOpen = async (fxId: string) => {
     if (!active || !profile) return;
+    const [{ count: activeCheckoutCount }, { data: fixture }] = await Promise.all([
+      supabase
+        .from("transactions")
+        .select("id", { count: "exact", head: true })
+        .eq("fixture_id", fxId)
+        .eq("status", "active"),
+      supabase.from("fixtures").select("status").eq("id", fxId).maybeSingle(),
+    ]);
+    if ((activeCheckoutCount ?? 0) > 0 || (fixture as { status?: string } | null)?.status !== "available") {
+      await supabase.from("requests").update({ gate_status: "gate_failed" }).eq("id", active.id);
+      await supabase.from("gate_log").insert({
+        command: "open",
+        executed: false,
+        worker_id: active.worker?.id ?? null,
+        fixture_id: fxId,
+        request_id: active.id,
+        gatekeeper_id: profile.id,
+        scan_1_verified: true,
+        scan_2_verified: true,
+        scan_2_at: new Date().toISOString(),
+        gate_opened: false,
+        failure_reason: "fixture_already_checked_out",
+      });
+      toast.error("Fixture is already checked out. Return it before opening the gate again.");
+      playErrorSound();
+      return;
+    }
     await supabase.from("gate_log").insert({
       command: "open",
       executed: false,

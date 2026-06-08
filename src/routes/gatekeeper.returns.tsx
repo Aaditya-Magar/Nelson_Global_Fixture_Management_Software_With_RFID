@@ -21,12 +21,14 @@ type CheckedOutRow = {
   worker: { id: string; full_name: string; employee_id: string } | null;
 };
 
+const ACTIVE_TRANSACTION_SELECT =
+  `id,checked_out_at,fixture_id,request_id,fixtures!inner(${FIXTURE_LOCATION_SELECT}),worker:profiles!transactions_worker_id_fkey(id,full_name,employee_id)`;
+
 type ScanState =
   | { kind: "idle" }
   | { kind: "success"; row: CheckedOutRow; durationMs: number }
   | { kind: "not_checked_out"; fx: { fixture_id: string; name: string } }
-  | { kind: "not_found"; scanned: string }
-  | { kind: "mismatch"; expected: CheckedOutRow; scanned: CheckedOutRow };
+  | { kind: "not_found"; scanned: string };
 
 function durationText(ms: number): { text: string; level: "ok" | "warn" | "over" } {
   const mins = Math.floor(ms / 60000);
@@ -40,7 +42,6 @@ function durationText(ms: number): { text: string; level: "ok" | "warn" | "over"
 function GatekeeperReturns() {
   const { profile } = useAuth();
   const [rows, setRows] = useState<CheckedOutRow[]>([]);
-  const [selected, setSelected] = useState<CheckedOutRow | null>(null);
   const [scan, setScan] = useState<ScanState>({ kind: "idle" });
   const [q, setQ] = useState("");
   const [cam, setCam] = useState(false);
@@ -52,7 +53,7 @@ function GatekeeperReturns() {
   const load = async () => {
     const { data } = await supabase
       .from("transactions")
-      .select(`id,checked_out_at,fixture_id,request_id,fixtures!inner(${FIXTURE_LOCATION_SELECT}),worker:profiles!transactions_worker_id_fkey(id,full_name,employee_id)`)
+      .select(ACTIVE_TRANSACTION_SELECT)
       .eq("status", "active")
       .order("checked_out_at", { ascending: true });
     setRows((data as unknown as CheckedOutRow[]) ?? []);
@@ -121,12 +122,23 @@ function GatekeeperReturns() {
       return_scanned_at: now,
       return_processed_by: profile.id,
     }).eq("id", row.id);
-    // Update fixture status + restore slot occupancy at home slot
-    await supabase.from("fixtures").update({ status: "available" }).eq("id", row.fixture_id);
-    const { data: fx } = await supabase.from("fixtures").select("home_slot_id").eq("id", row.fixture_id).maybeSingle();
-    if (fx && (fx as { home_slot_id: string | null }).home_slot_id) {
-      await supabase.from("fixtures").update({ current_slot_id: (fx as { home_slot_id: string }).home_slot_id }).eq("id", row.fixture_id);
-      await supabase.from("slots").update({ is_occupied: true }).eq("id", (fx as { home_slot_id: string }).home_slot_id);
+
+    const { count: remainingActive } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("fixture_id", row.fixture_id)
+      .eq("status", "active");
+
+    // Restore availability only when this was the last active checkout for the fixture.
+    if ((remainingActive ?? 0) === 0) {
+      await supabase.from("fixtures").update({ status: "available" }).eq("id", row.fixture_id);
+      const { data: fx } = await supabase.from("fixtures").select("home_slot_id").eq("id", row.fixture_id).maybeSingle();
+      if (fx && (fx as { home_slot_id: string | null }).home_slot_id) {
+        await supabase.from("fixtures").update({ current_slot_id: (fx as { home_slot_id: string }).home_slot_id }).eq("id", row.fixture_id);
+        await supabase.from("slots").update({ is_occupied: true }).eq("id", (fx as { home_slot_id: string }).home_slot_id);
+      }
+    } else {
+      await supabase.from("fixtures").update({ status: "checked_out" }).eq("id", row.fixture_id);
     }
     // Update request (best effort)
     if (row.request_id) {
@@ -144,7 +156,6 @@ function GatekeeperReturns() {
     const ms = Date.now() - new Date(row.checked_out_at).getTime();
     setScan({ kind: "success", row, durationMs: ms });
     playSuccessBeep();
-    setSelected(null);
     resetScanner(3000);
   };
 
@@ -171,7 +182,20 @@ function GatekeeperReturns() {
       return;
     }
     const fxRow = fx as { id: string; fixture_id: string; name: string; status: string };
-    if (fxRow.status !== "checked_out") {
+    let row = rows.find((r) => r.fixture_id === fxRow.id) ?? null;
+    if (!row) {
+      const { data: activeTx } = await supabase
+        .from("transactions")
+        .select(ACTIVE_TRANSACTION_SELECT)
+        .eq("fixture_id", fxRow.id)
+        .eq("status", "active")
+        .order("checked_out_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      row = (activeTx as unknown as CheckedOutRow | null) ?? null;
+    }
+
+    if (!row) {
       await supabase.from("return_log").insert({
         fixture_id: fxRow.id,
         scanned_fixture_id: code,
@@ -184,21 +208,11 @@ function GatekeeperReturns() {
       resetScanner();
       return;
     }
-    // Find the active transaction for this fixture
-    const row = rows.find((r) => r.fixture_id === fxRow.id);
-    if (!row) { await load(); return; }
-    // Mismatch with selected
-    if (selected && selected.fixture_id !== row.fixture_id) {
-      setScan({ kind: "mismatch", expected: selected, scanned: row });
-      playErrorSound();
-      setValue("");
-      return;
-    }
     await processReturn(row);
   };
 
   return (
-    <div className="grid lg:grid-cols-2 gap-6">
+    <div className="grid lg:grid-cols-2 gap-6 h-full min-h-0">
       {/* LEFT — Currently Checked Out */}
       <section>
         <div className="flex items-center justify-between mb-3">
@@ -212,7 +226,7 @@ function GatekeeperReturns() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search fixture, model, worker…"
             className="w-full pl-9 pr-3 py-2 rounded-md bg-background border border-border text-sm" />
         </div>
-        <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
+        <div className="space-y-2 max-h-[calc(100vh-17rem)] overflow-y-auto scrollbar-hidden pr-1">
           {filtered.length === 0 && (
             <div className="text-center py-10 text-sm text-muted-foreground rounded-xl border border-dashed border-border">
               <CheckCircle2 className="h-8 w-8 mx-auto text-green-500 mb-2" />
@@ -224,10 +238,9 @@ function GatekeeperReturns() {
             const d = durationText(ms);
             const dur = d.level === "over" ? "text-red-600" : d.level === "warn" ? "text-amber-600" : "text-muted-foreground";
             const dot = d.level === "over" ? "bg-red-500" : d.level === "warn" ? "bg-amber-500" : "bg-gray-400";
-            const isSel = selected?.id === r.id;
             return (
-              <button key={r.id} onClick={() => setSelected(r)}
-                className={`w-full text-left rounded-xl border bg-card p-3 transition ${isSel ? "border-primary border-2" : "border-border hover:border-primary/40"} ${d.level === "over" ? "bg-red-50/40" : ""}`}>
+              <div key={r.id}
+                className={`rounded-xl border border-border bg-card p-3 ${d.level === "over" ? "bg-red-50/40" : ""}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-mono text-xs text-muted-foreground">{r.fixtures?.fixture_id}</div>
                   <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-red-100 text-red-800">Checked Out</span>
@@ -240,7 +253,7 @@ function GatekeeperReturns() {
                   <span className={`h-2 w-2 rounded-full ${dot}`} />
                   <span className={dur}>Out for {d.text}</span>
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -251,17 +264,7 @@ function GatekeeperReturns() {
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><RotateCcw className="h-4 w-4 text-primary" /> Return Scanner</h3>
 
-          {selected ? (
-            <div className="mb-3 rounded-md border-2 border-primary/40 bg-primary/5 p-3 text-sm">
-              <div className="text-[11px] uppercase font-semibold text-primary mb-1">Expecting return of:</div>
-              <div className="font-mono text-xs text-muted-foreground">{selected.fixtures?.fixture_id}</div>
-              <div className="font-medium">{selected.fixtures?.name}</div>
-              <div className="text-xs text-muted-foreground">Model: {selected.fixtures?.model_number || "—"} · Worker: {selected.worker?.full_name}</div>
-              <button onClick={() => setSelected(null)} className="text-xs mt-1 text-muted-foreground hover:text-foreground">Clear selection</button>
-            </div>
-          ) : (
-            <div className="mb-3 text-xs text-muted-foreground">Scan any checked out fixture to return it</div>
-          )}
+          <div className="mb-3 text-xs text-muted-foreground">Scan any checked out fixture to return it</div>
 
           <div className="flex gap-2">
             <input
@@ -303,19 +306,6 @@ function GatekeeperReturns() {
               <div className="flex items-center gap-2 font-bold"><XCircle className="h-5 w-5" /> FIXTURE NOT RECOGNIZED</div>
               <div className="text-sm mt-2">Scanned: <span className="font-mono">{scan.scanned}</span></div>
               <div className="text-sm mt-1">This ID does not exist in the system.</div>
-            </div>
-          )}
-          {scan.kind === "mismatch" && (
-            <div className="mt-3 rounded-md bg-amber-50 border-2 border-amber-500 text-amber-900 p-4">
-              <div className="flex items-center gap-2 font-bold"><AlertTriangle className="h-5 w-5" /> DIFFERENT FIXTURE SCANNED</div>
-              <div className="text-sm mt-2 grid grid-cols-[100px_1fr] gap-y-1">
-                <div className="font-semibold">You selected:</div><div className="font-mono">{scan.expected.fixtures?.fixture_id} — {scan.expected.fixtures?.name}</div>
-                <div className="font-semibold">You scanned:</div><div className="font-mono">{scan.scanned.fixtures?.fixture_id} — {scan.scanned.fixtures?.name}</div>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <button onClick={() => processReturn(scan.scanned)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground font-medium">Yes, return {scan.scanned.fixtures?.fixture_id}</button>
-                <button onClick={() => { setScan({ kind: "idle" }); setValue(""); inputRef.current?.focus(); }} className="text-xs px-3 py-1.5 rounded border border-border">No, scan again</button>
-              </div>
             </div>
           )}
         </div>

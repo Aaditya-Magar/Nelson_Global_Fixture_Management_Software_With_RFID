@@ -24,8 +24,8 @@ function Layout() {
     { to: "/gatekeeper/returns", label: "Returns", icon: RotateCcw, exact: false },
   ];
   return (
-    <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground px-6 py-3 flex items-center justify-between">
+    <div className="h-screen overflow-hidden bg-background flex flex-col">
+      <header className="bg-primary text-primary-foreground px-6 py-3 flex items-center justify-between shrink-0">
         <div>
           <div className="text-xs opacity-80">{t("gk.title")}</div>
           <div className="font-semibold">{profile?.full_name}</div>
@@ -38,7 +38,7 @@ function Layout() {
           </button>
         </div>
       </header>
-      <div className="bg-card border-b border-border px-4 sm:px-6">
+      <div className="bg-card border-b border-border px-4 sm:px-6 shrink-0">
         <div className="max-w-7xl mx-auto flex gap-1 overflow-x-auto">
           {tabs.map((tt) => {
             const active = tt.exact ? loc.pathname === tt.to : loc.pathname.startsWith(tt.to);
@@ -52,7 +52,7 @@ function Layout() {
           })}
         </div>
       </div>
-      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+      <main className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full flex-1 min-h-0 overflow-y-auto scrollbar-hidden">
         <Outlet />
       </main>
     </div>

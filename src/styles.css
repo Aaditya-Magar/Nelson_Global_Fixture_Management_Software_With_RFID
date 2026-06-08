@@ -111,3 +111,12 @@
   50% { box-shadow: 0 0 0 8px oklch(0.55 0.18 145 / 0); }
 }
 .ready-pulse { animation: ready-pulse 1.8s ease-in-out infinite; }
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
