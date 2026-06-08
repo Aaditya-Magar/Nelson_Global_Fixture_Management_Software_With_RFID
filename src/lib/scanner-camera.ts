@@ -1,7 +1,52 @@
-import { useRef, useState } from "react";
-import { DecodeHintType, useZxing } from "react-zxing";
+import { useEffect, useRef } from "react";
+import { BarcodeFormat, BrowserMultiFormatReader, DecodeHintType } from "@zxing/library";
 
-const scannerHints = new Map([[DecodeHintType.TRY_HARDER, true]]);
+type NativeBarcode = { rawValue?: string };
+type NativeBarcodeDetector = { detect: (source: HTMLVideoElement) => Promise<NativeBarcode[]> };
+type NativeBarcodeDetectorCtor = new (options?: { formats?: string[] }) => NativeBarcodeDetector;
+
+declare global {
+  interface Window {
+    BarcodeDetector?: NativeBarcodeDetectorCtor & {
+      getSupportedFormats?: () => Promise<string[]>;
+    };
+  }
+}
+
+const supportedFormats = [
+  BarcodeFormat.QR_CODE,
+  BarcodeFormat.CODE_128,
+  BarcodeFormat.CODE_39,
+  BarcodeFormat.CODE_93,
+  BarcodeFormat.EAN_13,
+  BarcodeFormat.EAN_8,
+  BarcodeFormat.UPC_A,
+  BarcodeFormat.UPC_E,
+  BarcodeFormat.ITF,
+  BarcodeFormat.CODABAR,
+  BarcodeFormat.DATA_MATRIX,
+  BarcodeFormat.PDF_417,
+];
+
+const scannerHints = new Map<DecodeHintType, unknown>([
+  [DecodeHintType.TRY_HARDER, true],
+  [DecodeHintType.POSSIBLE_FORMATS, supportedFormats],
+]);
+
+const nativeFormats = [
+  "qr_code",
+  "code_128",
+  "code_39",
+  "code_93",
+  "ean_13",
+  "ean_8",
+  "upc_a",
+  "upc_e",
+  "itf",
+  "codabar",
+  "data_matrix",
+  "pdf417",
+];
 
 const scannerConstraints: MediaStreamConstraints = {
   audio: false,
@@ -13,28 +58,101 @@ const scannerConstraints: MediaStreamConstraints = {
 };
 
 export function useAutoStopScanner(onResult: (text: string) => void) {
+  const ref = useRef<HTMLVideoElement | null>(null);
   const handledRef = useRef(false);
-  const [paused, setPaused] = useState(false);
 
-  const scanner = useZxing({
-    paused,
-    constraints: scannerConstraints,
-    hints: scannerHints,
-    timeBetweenDecodingAttempts: 100,
-    onDecodeResult: (result) => {
+  useEffect(() => {
+    let active = true;
+    let stream: MediaStream | null = null;
+    let nativeTimer: number | null = null;
+    const reader = new BrowserMultiFormatReader(scannerHints, 100);
+
+    const stop = () => {
+      active = false;
+      if (nativeTimer !== null) window.clearTimeout(nativeTimer);
+      reader.reset();
+      stopVideoTracks(ref.current);
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+
+    const handleResult = (text: string) => {
       if (handledRef.current) return;
+      const value = text.trim();
+      if (!value) return;
       handledRef.current = true;
-      setPaused(true);
-      stopVideoTracks(scanner.ref.current);
-      onResult(result.getText());
-    },
-  });
+      stop();
+      onResult(value);
+    };
 
-  return scanner;
+    const start = async () => {
+      const video = ref.current;
+      if (!video) return;
+
+      stream = await navigator.mediaDevices.getUserMedia(scannerConstraints);
+      if (!active) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      video.srcObject = stream;
+      await video.play().catch(() => undefined);
+
+      startNativeDetector(video, handleResult, () => active, (timer) => {
+        nativeTimer = timer;
+      });
+
+      reader.decodeFromStream(stream, video, (result) => {
+        if (result) handleResult(result.getText());
+      }).catch(() => undefined);
+    };
+
+    start().catch(() => undefined);
+
+    return stop;
+  }, [onResult]);
+
+  return { ref };
 }
 
 function stopVideoTracks(video: HTMLVideoElement | null) {
   const stream = video?.srcObject;
   if (!(stream instanceof MediaStream)) return;
   stream.getTracks().forEach((track) => track.stop());
+  video.srcObject = null;
+}
+
+function startNativeDetector(
+  video: HTMLVideoElement,
+  onResult: (text: string) => void,
+  isActive: () => boolean,
+  setTimer: (timer: number) => void,
+) {
+  const Detector = window.BarcodeDetector;
+  if (!Detector) return;
+
+  let detector: NativeBarcodeDetector;
+  try {
+    detector = new Detector({ formats: nativeFormats });
+  } catch {
+    try {
+      detector = new Detector();
+    } catch {
+      return;
+    }
+  }
+
+  const detect = async () => {
+    if (!isActive()) return;
+    if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      const codes = await detector.detect(video).catch(() => []);
+      const value = codes.find((code) => code.rawValue)?.rawValue;
+      if (value) {
+        onResult(value);
+        return;
+      }
+    }
+    setTimer(window.setTimeout(detect, 100));
+  };
+
+  detect();
 }
