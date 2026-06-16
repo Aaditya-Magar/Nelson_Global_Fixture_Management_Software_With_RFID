@@ -1,18 +1,26 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { X, Camera } from "lucide-react";
 import { useAutoStopScanner } from "@/lib/scanner-camera";
 
-export function ScannerButton({ onResult }: { onResult: (text: string) => void }) {
+export function ScannerButton({
+  onResult,
+  className,
+  children,
+}: {
+  onResult: (text: string) => void;
+  className?: string;
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md bg-primary text-primary-foreground p-2.5 hover:bg-primary/90"
+        className={className ?? "rounded-md bg-primary text-primary-foreground p-2.5 hover:bg-primary/90"}
         aria-label="Scan barcode or QR"
       >
-        <Camera className="h-5 w-5" />
+        {children ?? <Camera className="h-5 w-5" />}
       </button>
       {open && <ScannerModal onClose={() => setOpen(false)} onResult={(t) => { setOpen(false); onResult(t); }} />}
     </>

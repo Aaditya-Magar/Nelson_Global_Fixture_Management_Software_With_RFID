@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, CheckCircle2, AlertTriangle, XCircle, X, MapPin, Package, RotateCcw, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, AlertTriangle, XCircle, MapPin, Package, RotateCcw, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { sanitizeText } from "@/lib/sanitize";
-import { playSuccessBeep, playErrorSound } from "@/lib/gate-audio";
+import { playSoftBeep, playErrorSound, playReturnSuccessSound } from "@/lib/gate-audio";
 import { FIXTURE_LOCATION_SELECT, locationPathText, type FixtureWithLocation } from "@/lib/fixtures";
-import { useAutoStopScanner } from "@/lib/scanner-camera";
+import { DualScanInput } from "@/components/DualScanInput";
 
 export const Route = createFileRoute("/gatekeeper/returns")({
   component: GatekeeperReturns,
@@ -26,9 +26,13 @@ const ACTIVE_TRANSACTION_SELECT =
 
 type ScanState =
   | { kind: "idle" }
-  | { kind: "success"; row: CheckedOutRow; durationMs: number }
+  | { kind: "success"; row: CheckedOutRow; durationMs: number; rackName: string; rowName: string }
   | { kind: "not_checked_out"; fx: { fixture_id: string; name: string } }
   | { kind: "not_found"; scanned: string };
+
+type ScanStatus = "idle" | "scanning" | "success" | "error";
+type StepKey = "rack" | "row" | "fixture";
+const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function durationText(ms: number): { text: string; level: "ok" | "warn" | "over" } {
   const mins = Math.floor(ms / 60000);
@@ -44,11 +48,16 @@ function GatekeeperReturns() {
   const [rows, setRows] = useState<CheckedOutRow[]>([]);
   const [scan, setScan] = useState<ScanState>({ kind: "idle" });
   const [q, setQ] = useState("");
-  const [cam, setCam] = useState(false);
   const [, tick] = useState(0);
   const [todays, setTodays] = useState<Array<{ id: string; returned_at: string; fixture_id: string; fixture_name: string; worker_name: string; duration: string }>>([]);
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const [value, setValue] = useState("");
+  const [step, setStep] = useState<StepKey>("rack");
+  const [stepStates, setStepStates] = useState<Record<StepKey, { status: ScanStatus; message: string }>>({
+    rack: { status: "idle", message: "" },
+    row: { status: "idle", message: "" },
+    fixture: { status: "idle", message: "" },
+  });
+  const [confirmedRack, setConfirmedRack] = useState<{ id: string; name: string } | null>(null);
+  const [confirmedRow, setConfirmedRow] = useState<{ id: string; name: string; rack_id: string } | null>(null);
 
   const load = async () => {
     const { data } = await supabase
@@ -92,8 +101,6 @@ function GatekeeperReturns() {
     return () => { supabase.removeChannel(ch); clearInterval(t); };
   }, []);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
-
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     const sorted = [...rows].sort((a, b) => new Date(a.checked_out_at).getTime() - new Date(b.checked_out_at).getTime());
@@ -107,12 +114,18 @@ function GatekeeperReturns() {
   const resetScanner = (delayMs = 2000) => {
     setTimeout(() => {
       setScan({ kind: "idle" });
-      setValue("");
-      inputRef.current?.focus();
+      setStep("rack");
+      setConfirmedRack(null);
+      setConfirmedRow(null);
+      setStepStates({
+        rack: { status: "idle", message: "" },
+        row: { status: "idle", message: "" },
+        fixture: { status: "idle", message: "" },
+      });
     }, delayMs);
   };
 
-  const processReturn = async (row: CheckedOutRow) => {
+  const processReturn = async (row: CheckedOutRow, rackName: string, rowName: string) => {
     if (!profile) return;
     const now = new Date().toISOString();
     // Update transaction
@@ -154,21 +167,80 @@ function GatekeeperReturns() {
       return_verified: true,
     });
     const ms = Date.now() - new Date(row.checked_out_at).getTime();
-    setScan({ kind: "success", row, durationMs: ms });
-    playSuccessBeep();
+    setScan({ kind: "success", row, durationMs: ms, rackName, rowName });
+    playReturnSuccessSound();
     resetScanner(3000);
   };
 
-  const handle = async (raw: string) => {
+  const setStepState = (key: StepKey, status: ScanStatus, message: string) => {
+    setStepStates((old) => ({ ...old, [key]: { status, message } }));
+  };
+
+  const clearErrorLater = (key: StepKey) => {
+    setTimeout(() => setStepStates((old) => old[key].status === "error" ? { ...old, [key]: { status: "idle", message: "" } } : old), 2000);
+  };
+
+  const findRack = async (value: string) => {
+    if (uuidRe.test(value)) {
+      const { data } = await supabase.from("racks").select("id,name,nfc_tag_id").eq("id", value).maybeSingle();
+      if (data) return data as { id: string; name: string; nfc_tag_id: string | null };
+    }
+    const { data } = await supabase.from("racks").select("id,name,nfc_tag_id").eq("nfc_tag_id", value).maybeSingle();
+    return data as { id: string; name: string; nfc_tag_id: string | null } | null;
+  };
+
+  const findRow = async (value: string) => {
+    if (uuidRe.test(value)) {
+      const { data } = await supabase.from("rows").select("id,name,rack_id,nfc_tag_id").eq("id", value).maybeSingle();
+      if (data) return data as { id: string; name: string; rack_id: string; nfc_tag_id: string | null };
+    }
+    const { data } = await supabase.from("rows").select("id,name,rack_id,nfc_tag_id").eq("nfc_tag_id", value).maybeSingle();
+    return data as { id: string; name: string; rack_id: string; nfc_tag_id: string | null } | null;
+  };
+
+  const handleRack = async (raw: string) => {
+    const code = sanitizeText(raw, 120).trim();
+    const rack = await findRack(code);
+    if (!rack) {
+      setStepState("rack", "error", "Label not recognized as a rack - please try again");
+      playErrorSound();
+      clearErrorLater("rack");
+      return;
+    }
+    setConfirmedRack({ id: rack.id, name: rack.name });
+    setStepState("rack", "success", `${rack.name} confirmed`);
+    setStep("row");
+    playSoftBeep();
+  };
+
+  const handleRow = async (raw: string) => {
+    const code = sanitizeText(raw, 120).trim();
+    const row = await findRow(code);
+    if (!row) {
+      setStepState("row", "error", "Label not recognized as a row - please try again");
+      playErrorSound();
+      clearErrorLater("row");
+      return;
+    }
+    if (confirmedRack && row.rack_id !== confirmedRack.id) {
+      setStepState("row", "error", `This row is not in ${confirmedRack.name} - please scan a row in the correct rack`);
+      playErrorSound();
+      clearErrorLater("row");
+      return;
+    }
+    setConfirmedRow({ id: row.id, name: row.name, rack_id: row.rack_id });
+    setStepState("row", "success", `${row.name} confirmed`);
+    setStep("fixture");
+    playSoftBeep();
+  };
+
+  const handleFixture = async (raw: string) => {
     if (!profile) return;
     const code = sanitizeText(raw, 100).trim();
     if (!code) return;
-    // Find fixture by visible fixture_id
-    const { data: fx } = await supabase
-      .from("fixtures")
-      .select("id,fixture_id,name,status")
-      .eq("fixture_id", code)
-      .maybeSingle();
+    const byCode = await supabase.from("fixtures").select("id,fixture_id,name,status").eq("fixture_id", code).maybeSingle();
+    const byNfc = byCode.data ? { data: null } : await supabase.from("fixtures").select("id,fixture_id,name,status").eq("nfc_tag_id", code).maybeSingle();
+    const fx = byCode.data || byNfc.data;
     if (!fx) {
       await supabase.from("return_log").insert({
         scanned_fixture_id: code,
@@ -177,8 +249,9 @@ function GatekeeperReturns() {
         failure_reason: "fixture_not_found",
       });
       setScan({ kind: "not_found", scanned: code });
+      setStepState("fixture", "error", "Label not recognized as a fixture");
       playErrorSound();
-      resetScanner();
+      clearErrorLater("fixture");
       return;
     }
     const fxRow = fx as { id: string; fixture_id: string; name: string; status: string };
@@ -204,11 +277,14 @@ function GatekeeperReturns() {
         failure_reason: "fixture_not_checked_out",
       });
       setScan({ kind: "not_checked_out", fx: fxRow });
+      setStepState("fixture", "error", "This fixture is not currently checked out");
       playErrorSound();
-      resetScanner();
+      clearErrorLater("fixture");
       return;
     }
-    await processReturn(row);
+    if (!confirmedRack || !confirmedRow) return;
+    setStepState("fixture", "success", `${row.fixtures?.name ?? fxRow.name} confirmed`);
+    await processReturn(row, confirmedRack.name, confirmedRow.name);
   };
 
   return (
@@ -264,23 +340,45 @@ function GatekeeperReturns() {
         <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
           <h3 className="font-semibold text-sm flex items-center gap-2 mb-3"><RotateCcw className="h-4 w-4 text-primary" /> Return Scanner</h3>
 
-          <div className="mb-3 text-xs text-muted-foreground">Scan any checked out fixture to return it</div>
+          <div className="mb-3 text-xs text-muted-foreground">Confirm the storage rack, row, then fixture being returned</div>
 
-          <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handle(value); setValue(""); } }}
-              placeholder="Scan fixture barcode or QR to return"
-              className="min-w-0 flex-1 rounded-md bg-background border-2 border-border px-3 py-3 sm:py-4 text-base sm:text-lg outline-none focus:border-primary"
-              maxLength={100}
-              autoFocus
+          <ReturnStepCard title="Return Step 1 - Scan Rack" active={step === "rack"} locked={false} doneText={stepStates.rack.status === "success" ? stepStates.rack.message : ""}>
+            <DualScanInput
+              label="Rack Scan"
+              instruction="Scan the rack where you are storing the fixture"
+              active={step === "rack"}
+              onScanResult={handleRack}
+              status={stepStates.rack.status}
+              successMessage={stepStates.rack.message}
+              errorMessage={stepStates.rack.message}
             />
-            <button type="button" onClick={() => setCam(true)} className="shrink-0 rounded-md bg-primary text-primary-foreground p-2.5" aria-label="Camera">
-              <Camera className="h-5 w-5" />
-            </button>
-          </div>
+          </ReturnStepCard>
+
+          <ReturnStepCard title="Return Step 2 - Scan Row" active={step === "row"} locked={!confirmedRack} doneText={stepStates.row.status === "success" ? stepStates.row.message : ""}>
+            <DualScanInput
+              label="Row Scan"
+              instruction="Scan the row where you are placing the fixture"
+              active={step === "row"}
+              onScanResult={handleRow}
+              status={stepStates.row.status}
+              successMessage={stepStates.row.message}
+              errorMessage={stepStates.row.message}
+              disabled={!confirmedRack}
+            />
+          </ReturnStepCard>
+
+          <ReturnStepCard title="Return Step 3 - Scan Fixture" active={step === "fixture"} locked={!confirmedRow} doneText="">
+            <DualScanInput
+              label="Fixture Scan"
+              instruction="Scan the fixture being returned"
+              active={step === "fixture"}
+              onScanResult={handleFixture}
+              status={stepStates.fixture.status}
+              successMessage={stepStates.fixture.message}
+              errorMessage={stepStates.fixture.message}
+              disabled={!confirmedRow}
+            />
+          </ReturnStepCard>
 
           {scan.kind === "success" && (
             <div className="mt-3 rounded-md bg-green-50 border-2 border-green-500 text-green-900 p-4">
@@ -289,8 +387,8 @@ function GatekeeperReturns() {
               <div className="font-semibold">{scan.row.fixtures?.name}</div>
               <div className="text-xs">Model: {scan.row.fixtures?.model_number || "—"}</div>
               <div className="text-xs mt-1">Returned by: {scan.row.worker?.full_name} ({scan.row.worker?.employee_id})</div>
-              <div className="text-xs">Out for: {durationText(scan.durationMs).text}</div>
-              <div className="text-xs mt-1">📍 {locationPathText(scan.row.fixtures) ?? "—"}</div>
+              <div className="text-xs">Stored at: {scan.rackName} - {scan.rowName}</div>
+              <div className="text-xs">Was out for: {durationText(scan.durationMs).text}</div>
               <div className="mt-2 text-sm font-medium">Fixture is back in stock.</div>
             </div>
           )}
@@ -363,23 +461,21 @@ function GatekeeperReturns() {
         </div>
       </section>
 
-      {cam && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
-          <button onClick={() => setCam(false)} className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 text-white" aria-label="Close">
-            <X className="h-5 w-5" />
-          </button>
-          <div className="scanner-camera-stage">
-            <CamView onResult={(t) => { setCam(false); handle(t); }} />
-            <div className="scanner-viewfinder" aria-hidden="true" />
-          </div>
-          <div className="text-center text-white/80 text-sm pb-6">Point camera at barcode / QR</div>
-        </div>
-      )}
     </div>
   );
 }
 
-function CamView({ onResult }: { onResult: (t: string) => void }) {
-  const { ref } = useAutoStopScanner(onResult);
-  return <video ref={ref} autoPlay playsInline muted />;
+function ReturnStepCard({ title, active, locked, doneText, children }: { title: string; active: boolean; locked: boolean; doneText: string; children: React.ReactNode }) {
+  if (doneText && !active) {
+    return <div className="mb-3 rounded-lg border border-green-300 bg-green-50 px-3 py-2 text-sm text-green-900">✓ {doneText}</div>;
+  }
+  if (locked) {
+    return <div className="mb-3 rounded-lg border border-border bg-secondary/30 px-3 py-3 text-sm text-muted-foreground">○ {title} <span className="text-xs">[locked]</span></div>;
+  }
+  return (
+    <div className={`mb-3 rounded-lg border px-3 py-3 ${active ? "border-primary bg-primary/5" : "border-border bg-background"}`}>
+      <div className="font-semibold text-sm mb-2">● {title}</div>
+      {children}
+    </div>
+  );
 }

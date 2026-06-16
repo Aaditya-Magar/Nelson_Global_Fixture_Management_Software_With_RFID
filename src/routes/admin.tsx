@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "react-qr-code";
 import bwipjs from "bwip-js/browser";
-import { LogOut, Package, MapPin, Layers, Users, ShieldCheck, BarChart3, Plus, Printer, Search, ChevronRight, ChevronLeft, Pencil, Download, Trash2, Eye, EyeOff, DoorOpen } from "lucide-react";
+import { LogOut, Package, MapPin, Layers, Users, ShieldCheck, BarChart3, Plus, Printer, Search, ChevronRight, ChevronLeft, Pencil, Download, Trash2, Eye, EyeOff, DoorOpen, Radio } from "lucide-react";
 import { GateActivity } from "@/components/GateActivity";
 import { RequireRole } from "@/components/RequireRole";
 import { useAuth } from "@/lib/auth-context";
@@ -20,6 +20,7 @@ import {
   locationParts,
   type FixtureWithLocation,
 } from "@/lib/fixtures";
+import { useNFCScan } from "@/hooks/useNFCScan";
 
 export const Route = createFileRoute("/admin")({
   component: () => (
@@ -289,8 +290,8 @@ function StatusBadge({ status }: { status: string }) {
 
 // ============= LOCATIONS =============
 type Zone = { id: string; name: string };
-type Rack = { id: string; zone_id: string; name: string };
-type Row  = { id: string; rack_id: string; name: string };
+type Rack = { id: string; zone_id: string; name: string; nfc_tag_id: string | null };
+type Row  = { id: string; rack_id: string; name: string; nfc_tag_id: string | null };
 type Slot = { id: string; row_id: string; name: string; is_occupied: boolean };
 
 function Locations() {
@@ -405,6 +406,16 @@ function Locations() {
                         </div>
                         {rkOpen && (
                           <div>
+                            <div className="pl-16 pr-4 pb-3">
+                              <AdminLabelTools
+                                type="rack"
+                                id={rk.id}
+                                name={rk.name}
+                                subtitle={z.name}
+                                nfcTagId={rk.nfc_tag_id}
+                                onRegistered={reload}
+                              />
+                            </div>
                             {rkRows.length === 0 && <div className="px-16 py-3 text-xs text-muted-foreground">No rows. Use "Add row" above.</div>}
                             {rkRows.map((ro) => {
                               const roSlots = slots.filter((s) => s.row_id === ro.id);
@@ -465,6 +476,18 @@ function Locations() {
                                           )}
                                         </tbody>
                                       </table>
+                                    </div>
+                                  )}
+                                  {roOpen && (
+                                    <div className="pl-24 pr-4 pb-3">
+                                      <AdminLabelTools
+                                        type="row"
+                                        id={ro.id}
+                                        name={ro.name}
+                                        subtitle={rk.name}
+                                        nfcTagId={ro.nfc_tag_id}
+                                        onRegistered={reload}
+                                      />
                                     </div>
                                   )}
                                 </div>
@@ -637,6 +660,7 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
             <th className="text-left p-2">Type</th>
             <th className="text-left p-2">Location</th>
             <th className="text-left p-2">Status</th>
+            <th className="text-left p-2">NFC</th>
             <th></th>
           </tr></thead>
           <tbody>
@@ -650,13 +674,19 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
                   <td className="p-2">{f.fixture_types?.name ?? "—"}</td>
                   <td className="p-2">{path ? <span className="text-xs">{path}</span> : <span className="text-xs text-red-600">Not assigned</span>}</td>
                   <td className="p-2"><StatusBadge status={f.status} /></td>
+                  <td className="p-2">
+                    <div className="space-y-1">
+                      <NfcBadge tagId={f.nfc_tag_id ?? null} />
+                      <RegisterNFCButton entityType="fixture" entityId={f.id} table="fixtures" onRegistered={reload} compact />
+                    </div>
+                  </td>
                   <td className="p-2 text-right">
                     <button onClick={() => onOpen(f.id)} className="text-xs text-primary underline">Open</button>
                   </td>
                 </tr>
               );
             })}
-            {filtered.length === 0 && <tr><td colSpan={7} className="p-3 text-center text-muted-foreground">No fixtures.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={8} className="p-3 text-center text-muted-foreground">No fixtures.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -704,6 +734,7 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="flex gap-2 items-center">
           <StatusBadge status={fx.status} />
+          <NfcBadge tagId={fx.nfc_tag_id ?? null} />
           <button onClick={() => setShowEdit(true)} className="text-xs px-3 py-1.5 rounded border border-border flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
           <a href={printUrl} target="_blank" rel="noreferrer" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground flex items-center gap-1"><Printer className="h-3 w-3" /> Print Label</a>
         </div>
@@ -722,6 +753,15 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
           </Row>
           <Row label="Weight">{fx.weight_kg != null ? `${fx.weight_kg} kg` : "—"}</Row>
           <Row label="Description">{fx.description ?? "—"}</Row>
+          <Row label="NFC Tag">
+            <span className={fx.nfc_tag_id ? "font-mono text-xs" : "text-red-600 text-xs"}>{fx.nfc_tag_id ?? "Not registered"}</span>
+          </Row>
+          <RegisterNFCButton
+            entityType="fixture"
+            entityId={fx.id}
+            table="fixtures"
+            onRegistered={load}
+          />
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="text-xs text-muted-foreground mb-2">Codes</div>
@@ -766,19 +806,145 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return <div className="flex gap-3"><div className="w-24 text-xs text-muted-foreground">{label}</div><div className="flex-1">{children}</div></div>;
 }
 
-function QRBlock({ value }: { value: string }) {
-  return <QRCode value={value} size={140} />;
+function QRBlock({ value, size = 140 }: { value: string; size?: number }) {
+  return <QRCode value={value} size={size} />;
 }
 
-function BarcodeBlock({ value }: { value: string }) {
+function BarcodeBlock({ value, compact = false }: { value: string; compact?: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     if (!ref.current) return;
     try {
-      bwipjs.toCanvas(ref.current, { bcid: "code128", text: value, scale: 2, height: 12, includetext: true, textxalign: "center" });
+      bwipjs.toCanvas(ref.current, {
+        bcid: "code128",
+        text: value,
+        scale: compact ? 1 : 2,
+        height: compact ? 10 : 12,
+        includetext: !compact,
+        textxalign: "center",
+      });
     } catch { /* noop */ }
-  }, [value]);
-  return <canvas ref={ref} className="max-w-full" />;
+  }, [value, compact]);
+  return <canvas ref={ref} className="block h-auto w-full max-w-full" />;
+}
+
+function NfcBadge({ tagId }: { tagId: string | null }) {
+  return tagId ? (
+    <span className="text-[10px] uppercase font-semibold px-2 py-1 rounded bg-green-100 text-green-800">NFC ✓</span>
+  ) : (
+    <span className="text-[10px] uppercase font-semibold px-2 py-1 rounded bg-red-100 text-red-800">No NFC</span>
+  );
+}
+
+function AdminLabelTools({
+  type,
+  id,
+  name,
+  subtitle,
+  nfcTagId,
+  onRegistered,
+}: {
+  type: "rack" | "row";
+  id: string;
+  name: string;
+  subtitle: string;
+  nfcTagId: string | null;
+  onRegistered: () => void;
+}) {
+  const printUrl = `/print-label?type=${type}&id=${encodeURIComponent(id)}`;
+  return (
+    <div className="rounded-lg border border-border bg-card/70 p-3">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">{type} label</div>
+          <div className="text-sm font-semibold">{name}</div>
+          <div className="text-xs text-muted-foreground">{subtitle}</div>
+          <div className="mt-1 font-mono text-[11px] break-all text-muted-foreground">{id}</div>
+          <div className="mt-2 text-xs">
+            NFC Tag:{" "}
+            <span className={nfcTagId ? "font-mono" : "text-red-600"}>{nfcTagId ?? "Not registered"}</span>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-[140px_minmax(220px,1fr)] xl:grid-cols-1">
+          <div className="bg-white p-2 rounded border border-border flex items-center justify-center">
+            <QRBlock value={id} size={132} />
+          </div>
+          <div className="bg-white p-2 rounded border border-border overflow-hidden">
+            <BarcodeBlock value={id} compact />
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a href={printUrl} target="_blank" rel="noreferrer" className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground flex items-center gap-1">
+          <Printer className="h-3 w-3" /> Print {type === "rack" ? "Rack" : "Row"} Label
+        </a>
+        <RegisterNFCButton entityType={type} entityId={id} table={type === "rack" ? "racks" : "rows"} onRegistered={onRegistered} />
+      </div>
+    </div>
+  );
+}
+
+function RegisterNFCButton({
+  entityType,
+  entityId,
+  table,
+  onRegistered,
+  compact = false,
+}: {
+  entityType: "rack" | "row" | "fixture";
+  entityId: string;
+  table: "racks" | "rows" | "fixtures";
+  onRegistered: () => void;
+  compact?: boolean;
+}) {
+  const { profile } = useAuth();
+  const [active, setActive] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const { isSupported, isScanning } = useNFCScan({
+    active,
+    onScan: async ({ tagId }) => {
+      setActive(false);
+      const { error } = await supabase.from(table).update({ nfc_tag_id: tagId }).eq("id", entityId);
+      if (error) {
+        toast.error(error.message);
+        setMessage(error.message);
+        return;
+      }
+      await supabase.from("nfc_registration_log").insert({
+        registered_by: profile?.id ?? null,
+        entity_type: entityType,
+        entity_id: entityId,
+        nfc_tag_id: tagId,
+      });
+      toast.success(`NFC registered: ${tagId}`);
+      setMessage(`Registered ${tagId}`);
+      onRegistered();
+    },
+    onError: (error) => {
+      toast.error(error);
+      setMessage(error);
+    },
+  });
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        disabled={!isSupported}
+        title={isSupported ? "Register NFC tag" : "Requires Android Chrome"}
+        onClick={() => {
+          setMessage(null);
+          setActive(true);
+        }}
+        className={`text-xs rounded border flex items-center gap-1 disabled:opacity-50 ${compact ? "px-2 py-1" : "px-3 py-1.5"} ${
+          isScanning ? "border-green-500 bg-green-50 text-green-800 animate-pulse" : "border-border bg-background"
+        }`}
+      >
+        <Radio className="h-3 w-3" /> {isScanning ? "Tap tag..." : compact ? "Register" : "Register NFC"}
+      </button>
+      {message && <span className="text-[11px] text-muted-foreground">{message}</span>}
+    </div>
+  );
 }
 
 // ============= ADD / EDIT FIXTURE =============
