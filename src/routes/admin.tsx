@@ -49,13 +49,13 @@ function AdminApp() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
-      <aside className="lg:w-60 bg-sidebar text-sidebar-foreground flex lg:flex-col overflow-x-auto lg:overflow-visible">
-        <div className="px-4 py-5">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background overflow-x-hidden">
+      <aside className="lg:w-60 bg-card lg:bg-sidebar text-foreground lg:text-sidebar-foreground border-b border-border lg:border-b-0 flex lg:flex-col overflow-hidden">
+        <div className="shrink-0 px-4 py-3 lg:py-5">
           <div className="text-xs uppercase tracking-wider opacity-70">{t("admin.title")}</div>
           <div className="font-semibold text-sm mt-0.5">{profile?.full_name}</div>
         </div>
-        <nav className="flex flex-1 lg:block lg:space-y-1 px-2 py-2 lg:py-0 min-w-max lg:min-w-0">
+        <nav className="flex flex-1 lg:block lg:space-y-1 px-2 py-2 lg:py-0 overflow-x-auto scrollbar-hidden lg:overflow-visible">
           {tabs.map((tt) => {
             const Icon = tt.icon;
             const active = tab === tt.id;
@@ -63,7 +63,7 @@ function AdminApp() {
               <button
                 key={tt.id}
                 onClick={() => setTab(tt.id)}
-                className={`w-full text-left flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-md text-sm whitespace-nowrap ${active ? "bg-sidebar-primary text-sidebar-primary-foreground" : "hover:bg-sidebar-accent"}`}
+                className={`shrink-0 lg:w-full text-left flex items-center gap-2 lg:gap-3 px-3 py-2 rounded-md text-sm whitespace-nowrap ${active ? "bg-primary text-primary-foreground lg:bg-sidebar-primary lg:text-sidebar-primary-foreground" : "hover:bg-secondary lg:hover:bg-sidebar-accent"}`}
               >
                 <Icon className="h-4 w-4" />
                 {tt.label}
@@ -71,7 +71,7 @@ function AdminApp() {
             );
           })}
         </nav>
-        <div className="m-3 flex lg:block gap-2 lg:space-y-2">
+        <div className="m-3 hidden lg:block space-y-2">
           <LanguageSwitcher className="w-full" />
           <button
             onClick={async () => { await signOut(); nav({ to: "/secure/admin-panel" }); }}
@@ -81,7 +81,7 @@ function AdminApp() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 p-4 sm:p-6 overflow-auto min-w-0">
+      <main className="flex-1 w-full max-w-full p-4 sm:p-6 overflow-x-hidden lg:overflow-auto min-w-0">
         {tab === "dashboard" && <Dashboard />}
         {tab === "locations" && <Locations />}
         {tab === "types" && <FixtureTypes />}
@@ -128,8 +128,8 @@ function Dashboard() {
       </div>
       <div>
         <h2 className="font-semibold mb-2">{t("admin.recent_transactions")}</h2>
-        <div className="rounded-xl border border-border bg-card overflow-auto">
-          <table className="w-full text-sm">
+        <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+          <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-secondary"><tr>
               <th className="text-left p-2">{t("admin.fixture")}</th>
               <th className="text-left p-2">{t("admin.model")}</th>
@@ -154,6 +154,19 @@ function Dashboard() {
               {recent.length === 0 && <tr><td className="p-3 text-center text-muted-foreground" colSpan={7}>{t("admin.no_transactions")}</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="md:hidden space-y-2">
+          {recent.map((r) => (
+            <MobileCard key={r.id} title={r.fixtures?.name ?? "Fixture"} subtitle={r.fixtures?.fixture_id}>
+              <MobileField label={t("admin.model")}>{r.fixtures?.model_number || "—"}</MobileField>
+              <MobileField label={t("admin.worker")}>{r.worker?.full_name ?? "—"}</MobileField>
+              <MobileField label={t("admin.gatekeeper")}>{r.gatekeeper?.full_name ?? "—"}</MobileField>
+              <MobileField label={t("gk.checked_out_at")}>{fmt(r.checked_out_at)}</MobileField>
+              <MobileField label={t("gk.returned_at")}>{fmt(r.returned_at)}</MobileField>
+              <MobileField label={t("admin.status")}><span className={`text-[10px] uppercase font-semibold px-2 py-1 rounded ${r.status === "returned" ? "bg-gray-200 text-gray-700" : "bg-red-100 text-red-800"}`}>{r.status}</span></MobileField>
+            </MobileCard>
+          ))}
+          {recent.length === 0 && <EmptyMobileCard>{t("admin.no_transactions")}</EmptyMobileCard>}
         </div>
       </div>
 
@@ -218,9 +231,9 @@ function AllFixturesAndLocations() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-between sm:items-center mb-3">
         <h2 className="font-semibold">All Fixtures and Locations</h2>
-        <button onClick={exportCsv} className="text-xs px-3 py-2 rounded border border-border flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Export CSV</button>
+        <button onClick={exportCsv} className="w-full sm:w-auto justify-center text-xs px-3 py-2 rounded border border-border flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Export CSV</button>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, model…" className="rounded border border-border px-3 py-2 bg-background text-sm" />
@@ -239,8 +252,8 @@ function AllFixturesAndLocations() {
           <option value="maintenance">Maintenance</option>
         </select>
       </div>
-      <div className="rounded-xl border border-border bg-card overflow-auto">
-        <table className="w-full text-sm">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+        <table className="w-full min-w-[860px] text-sm">
           <thead className="bg-secondary">
             <tr>
               <th className="text-left p-2">Fixture ID</th>
@@ -275,6 +288,20 @@ function AllFixturesAndLocations() {
           </tbody>
         </table>
       </div>
+      <div className="md:hidden space-y-2">
+        {filtered.map((f) => {
+          const p = locationParts(f);
+          return (
+            <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
+              <MobileField label="Model">{f.model_number || "—"}</MobileField>
+              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Location">{p ? `${p.zone} -> ${p.rack} -> ${p.row} -> ${p.slot}` : <span className="text-red-600">Not assigned</span>}</MobileField>
+              <MobileField label="Status"><StatusBadge status={f.status} /></MobileField>
+            </MobileCard>
+          );
+        })}
+        {filtered.length === 0 && <EmptyMobileCard>No fixtures.</EmptyMobileCard>}
+      </div>
     </div>
   );
 }
@@ -286,6 +313,31 @@ function StatusBadge({ status }: { status: string }) {
     maintenance: "bg-amber-100 text-amber-800",
   };
   return <span className={`text-[10px] uppercase font-semibold px-2 py-1 rounded ${map[status] ?? "bg-secondary"}`}>{status.replace("_", " ")}</span>;
+}
+
+function MobileCard({ title, subtitle, children }: { title: React.ReactNode; subtitle?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+      <div className="min-w-0">
+        <div className="font-medium leading-snug break-words">{title}</div>
+        {subtitle && <div className="mt-0.5 font-mono text-xs text-muted-foreground break-words">{subtitle}</div>}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">{children}</div>
+    </div>
+  );
+}
+
+function MobileField({ label, children, full = false }: { label: string; children: React.ReactNode; full?: boolean }) {
+  return (
+    <div className={full ? "col-span-2 min-w-0" : "min-w-0"}>
+      <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="mt-0.5 break-words">{children}</div>
+    </div>
+  );
+}
+
+function EmptyMobileCard({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">{children}</div>;
 }
 
 // ============= LOCATIONS =============
@@ -350,12 +402,12 @@ function Locations() {
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-end mb-4">
         <div>
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Admin panel</div>
           <h1 className="text-3xl font-semibold">Locations</h1>
         </div>
-        <button onClick={addZone} className="bg-primary text-primary-foreground px-3.5 py-2 rounded-md text-sm flex items-center gap-1.5 font-medium shadow-sm hover:opacity-90">
+        <button onClick={addZone} className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-3.5 py-2 rounded-md text-sm flex items-center gap-1.5 font-medium shadow-sm hover:opacity-90">
           <Plus className="h-4 w-4" /> Add zone
         </button>
       </div>
@@ -370,13 +422,13 @@ function Locations() {
           const zOpen = openZones.has(z.id);
           return (
             <div key={z.id} className="rounded-xl border border-border bg-card overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 hover:bg-secondary/30">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 hover:bg-secondary/30">
                 <button onClick={() => toggle(openZones, setOpenZones, z.id)} className="flex items-center gap-2.5 text-left flex-1 min-w-0">
                   <span className="h-7 w-7 rounded bg-secondary flex items-center justify-center"><MapPin className="h-4 w-4 text-muted-foreground" /></span>
                   <span className="font-medium truncate">{z.name}</span>
                   <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-primary/15 text-primary">{zRacks.length} {zRacks.length === 1 ? "rack" : "racks"}</span>
                 </button>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
                   <button onClick={() => addRack(z.id)} className="text-xs px-2.5 py-1 rounded border border-dashed border-primary/40 text-primary hover:bg-primary/5 flex items-center gap-1"><Plus className="h-3 w-3" /> Add rack</button>
                   <IconBtn onClick={() => renameOrDelete("zones", z, "rename")} variant="edit" />
                   <IconBtn onClick={() => renameOrDelete("zones", z, "delete")} variant="delete" />
@@ -391,13 +443,13 @@ function Locations() {
                     const rkOpen = openRacks.has(rk.id);
                     return (
                       <div key={rk.id} className="border-b border-border last:border-b-0">
-                        <div className="flex items-center justify-between pl-12 pr-4 py-2.5 hover:bg-secondary/30">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pl-4 sm:pl-12 pr-4 py-2.5 hover:bg-secondary/30">
                           <button onClick={() => toggle(openRacks, setOpenRacks, rk.id)} className="flex items-center gap-2.5 text-left flex-1 min-w-0">
                             <Layers className="h-4 w-4 text-muted-foreground" />
                             <span className="text-sm font-medium">{rk.name}</span>
                             <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{rkRows.length} {rkRows.length === 1 ? "row" : "rows"}</span>
                           </button>
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 flex-wrap justify-end">
                             <button onClick={() => addRow(rk.id)} className="text-xs px-2.5 py-1 rounded border border-dashed border-primary/40 text-primary hover:bg-primary/5 flex items-center gap-1"><Plus className="h-3 w-3" /> Add row</button>
                             <IconBtn onClick={() => renameOrDelete("racks", rk, "rename")} variant="edit" />
                             <IconBtn onClick={() => renameOrDelete("racks", rk, "delete")} variant="delete" />
@@ -406,7 +458,7 @@ function Locations() {
                         </div>
                         {rkOpen && (
                           <div>
-                            <div className="pl-16 pr-4 pb-3">
+                            <div className="pl-4 sm:pl-16 pr-4 pb-3">
                               <AdminLabelTools
                                 type="rack"
                                 id={rk.id}
@@ -416,19 +468,19 @@ function Locations() {
                                 onRegistered={reload}
                               />
                             </div>
-                            {rkRows.length === 0 && <div className="px-16 py-3 text-xs text-muted-foreground">No rows. Use "Add row" above.</div>}
+                            {rkRows.length === 0 && <div className="px-4 sm:px-16 py-3 text-xs text-muted-foreground">No rows. Use "Add row" above.</div>}
                             {rkRows.map((ro) => {
                               const roSlots = slots.filter((s) => s.row_id === ro.id);
                               const roOpen = openRows.has(ro.id);
                               return (
                                 <div key={ro.id}>
-                                  <div className="flex items-center justify-between pl-20 pr-4 py-2 hover:bg-secondary/30">
+                                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between pl-4 sm:pl-20 pr-4 py-2 hover:bg-secondary/30">
                                     <button onClick={() => toggle(openRows, setOpenRows, ro.id)} className="flex items-center gap-2.5 text-left flex-1 min-w-0">
                                       <Layers className="h-3.5 w-3.5 text-muted-foreground opacity-70" />
                                       <span className="text-sm">{ro.name}</span>
                                       <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-secondary text-secondary-foreground">{roSlots.length} {roSlots.length === 1 ? "slot" : "slots"}</span>
                                     </button>
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 flex-wrap justify-end">
                                       <button onClick={() => addSlot(ro.id)} className="text-xs px-2.5 py-1 rounded border border-dashed border-primary/40 text-primary hover:bg-primary/5 flex items-center gap-1"><Plus className="h-3 w-3" /> Add slot</button>
                                       <IconBtn onClick={() => renameOrDelete("rows", ro, "rename")} variant="edit" />
                                       <IconBtn onClick={() => renameOrDelete("rows", ro, "delete")} variant="delete" />
@@ -436,50 +488,68 @@ function Locations() {
                                     </div>
                                   </div>
                                   {roOpen && (
-                                    <div className="pl-24 pr-4 pb-3 pt-1">
-                                      <table className="w-full text-sm border-collapse">
-                                        <thead>
-                                          <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                                            <th className="text-left font-medium py-2 pr-4">Slot</th>
-                                            <th className="text-left font-medium py-2 pr-4">Status</th>
-                                            <th className="text-left font-medium py-2 pr-4">Fixture assigned</th>
-                                            <th className="text-right font-medium py-2">Actions</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {roSlots.map((sl) => {
-                                            const fx = slotFx.get(sl.id);
-                                            return (
-                                              <tr key={sl.id} className="border-t border-border/60">
-                                                <td className="py-2 pr-4 font-mono text-xs">{sl.name}</td>
-                                                <td className="py-2 pr-4">
-                                                  <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded ${sl.is_occupied || fx ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" : "bg-secondary text-muted-foreground border border-border"}`}>
-                                                    {sl.is_occupied || fx ? "Occupied" : "Empty"}
-                                                  </span>
-                                                </td>
-                                                <td className="py-2 pr-4">
-                                                  {fx ? (
-                                                    <span><span className="font-mono text-xs text-muted-foreground">{fx.fixture_id}</span> — {fx.name}</span>
-                                                  ) : <span className="text-muted-foreground">—</span>}
-                                                </td>
-                                                <td className="py-2 text-right">
-                                                  <div className="inline-flex gap-1">
-                                                    <IconBtn onClick={() => renameOrDelete("slots", sl, "rename")} variant="edit" />
-                                                    <IconBtn onClick={() => renameOrDelete("slots", sl, "delete")} variant="delete" />
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            );
-                                          })}
-                                          {roSlots.length === 0 && (
-                                            <tr><td colSpan={4} className="py-3 text-xs text-muted-foreground">No slots yet.</td></tr>
-                                          )}
-                                        </tbody>
-                                      </table>
-                                    </div>
+                                    <>
+                                      <div className="hidden sm:block pl-24 pr-4 pb-3 pt-1 overflow-x-auto">
+                                        <table className="w-full min-w-[560px] text-sm border-collapse">
+                                          <thead>
+                                            <tr className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                                              <th className="text-left font-medium py-2 pr-4">Slot</th>
+                                              <th className="text-left font-medium py-2 pr-4">Status</th>
+                                              <th className="text-left font-medium py-2 pr-4">Fixture assigned</th>
+                                              <th className="text-right font-medium py-2">Actions</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {roSlots.map((sl) => {
+                                              const fx = slotFx.get(sl.id);
+                                              return (
+                                                <tr key={sl.id} className="border-t border-border/60">
+                                                  <td className="py-2 pr-4 font-mono text-xs">{sl.name}</td>
+                                                  <td className="py-2 pr-4">
+                                                    <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded ${sl.is_occupied || fx ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30" : "bg-secondary text-muted-foreground border border-border"}`}>
+                                                      {sl.is_occupied || fx ? "Occupied" : "Empty"}
+                                                    </span>
+                                                  </td>
+                                                  <td className="py-2 pr-4">
+                                                    {fx ? (
+                                                      <span><span className="font-mono text-xs text-muted-foreground">{fx.fixture_id}</span> - {fx.name}</span>
+                                                    ) : <span className="text-muted-foreground">—</span>}
+                                                  </td>
+                                                  <td className="py-2 text-right">
+                                                    <div className="inline-flex gap-1">
+                                                      <IconBtn onClick={() => renameOrDelete("slots", sl, "rename")} variant="edit" />
+                                                      <IconBtn onClick={() => renameOrDelete("slots", sl, "delete")} variant="delete" />
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              );
+                                            })}
+                                            {roSlots.length === 0 && (
+                                              <tr><td colSpan={4} className="py-3 text-xs text-muted-foreground">No slots yet.</td></tr>
+                                            )}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                      <div className="sm:hidden px-4 pb-3 space-y-2">
+                                        {roSlots.map((sl) => {
+                                          const fx = slotFx.get(sl.id);
+                                          return (
+                                            <MobileCard key={sl.id} title={sl.name}>
+                                              <MobileField label="Status">{sl.is_occupied || fx ? "Occupied" : "Empty"}</MobileField>
+                                              <MobileField label="Fixture">{fx ? `${fx.fixture_id} - ${fx.name}` : "—"}</MobileField>
+                                              <div className="col-span-2 flex justify-end gap-1 pt-1">
+                                                <IconBtn onClick={() => renameOrDelete("slots", sl, "rename")} variant="edit" />
+                                                <IconBtn onClick={() => renameOrDelete("slots", sl, "delete")} variant="delete" />
+                                              </div>
+                                            </MobileCard>
+                                          );
+                                        })}
+                                        {roSlots.length === 0 && <EmptyMobileCard>No slots yet.</EmptyMobileCard>}
+                                      </div>
+                                    </>
                                   )}
                                   {roOpen && (
-                                    <div className="pl-24 pr-4 pb-3">
+                                    <div className="pl-4 sm:pl-24 pr-4 pb-3">
                                       <AdminLabelTools
                                         type="row"
                                         id={ro.id}
@@ -555,11 +625,11 @@ function FixtureTypes() {
   };
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
         <h1 className="text-2xl font-semibold">{t("admin.fixture_types")}</h1>
-        <button onClick={add} className="bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> {t("admin.add_type")}</button>
+        <button onClick={add} className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> {t("admin.add_type")}</button>
       </div>
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-secondary"><tr><th className="text-left p-2">{t("admin.code")}</th><th className="text-left p-2">{t("admin.name")}</th><th className="text-left p-2">{t("admin.description")}</th><th className="text-right p-2">{t("admin.actions")}</th></tr></thead>
           <tbody>
@@ -574,6 +644,18 @@ function FixtureTypes() {
             {types.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">{t("admin.no_types")}</td></tr>}
           </tbody>
         </table>
+      </div>
+      <div className="md:hidden space-y-2">
+        {types.map((row) => (
+          <MobileCard key={row.id} title={row.name} subtitle={row.code}>
+            <MobileField label={t("admin.description")} full>{row.description ?? "—"}</MobileField>
+            <div className="col-span-2 flex justify-end gap-1 pt-1">
+              <IconBtn onClick={() => edit(row)} variant="edit" />
+              <IconBtn onClick={() => remove(row)} variant="delete" />
+            </div>
+          </MobileCard>
+        ))}
+        {types.length === 0 && <EmptyMobileCard>{t("admin.no_types")}</EmptyMobileCard>}
       </div>
     </div>
   );
@@ -625,11 +707,11 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
         <h1 className="text-2xl font-semibold">Fixtures</h1>
-        <div className="flex gap-2">
-          <button onClick={onAssign} className="border border-border text-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><MapPin className="h-4 w-4" /> Assign Locations</button>
-          <button onClick={() => setShowAdd(true)} className="bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> Add fixture</button>
+        <div className="grid grid-cols-2 gap-2 sm:flex">
+          <button onClick={onAssign} className="justify-center border border-border text-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><MapPin className="h-4 w-4" /> Assign</button>
+          <button onClick={() => setShowAdd(true)} className="justify-center bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> Add fixture</button>
         </div>
       </div>
 
@@ -651,8 +733,8 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
         </select>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-auto">
-        <table className="w-full text-sm">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+        <table className="w-full min-w-[900px] text-sm">
           <thead className="bg-secondary"><tr>
             <th className="text-left p-2">Fixture ID</th>
             <th className="text-left p-2">Name</th>
@@ -689,6 +771,25 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
             {filtered.length === 0 && <tr><td colSpan={8} className="p-3 text-center text-muted-foreground">No fixtures.</td></tr>}
           </tbody>
         </table>
+      </div>
+      <div className="md:hidden space-y-2">
+        {filtered.map((f) => {
+          const path = locationPathText(f);
+          return (
+            <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
+              <MobileField label="Model">{f.model_number || "—"}</MobileField>
+              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Location" full>{path || <span className="text-red-600">Not assigned</span>}</MobileField>
+              <MobileField label="Status"><StatusBadge status={f.status} /></MobileField>
+              <MobileField label="NFC"><NfcBadge tagId={f.nfc_tag_id ?? null} /></MobileField>
+              <div className="col-span-2 flex items-center justify-between gap-2 pt-1">
+                <RegisterNFCButton entityType="fixture" entityId={f.id} table="fixtures" onRegistered={reload} compact />
+                <button onClick={() => onOpen(f.id)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Open</button>
+              </div>
+            </MobileCard>
+          );
+        })}
+        {filtered.length === 0 && <EmptyMobileCard>No fixtures.</EmptyMobileCard>}
       </div>
 
       {showAdd && <AddFixtureModal onClose={() => setShowAdd(false)} onDone={() => { setShowAdd(false); reload(); }} />}
@@ -732,7 +833,7 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
             {fx.model_number ? <span>{fx.model_number}</span> : <span className="text-muted-foreground">—</span>}
           </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <StatusBadge status={fx.status} />
           <NfcBadge tagId={fx.nfc_tag_id ?? null} />
           <button onClick={() => setShowEdit(true)} className="text-xs px-3 py-1.5 rounded border border-border flex items-center gap-1"><Pencil className="h-3 w-3" /> Edit</button>
@@ -765,7 +866,7 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="text-xs text-muted-foreground mb-2">Codes</div>
-          <div className="grid grid-cols-2 gap-3 items-center">
+          <div className="grid gap-3 sm:grid-cols-2 items-center">
             <div className="bg-white p-3 rounded flex items-center justify-center">
               <QRBlock value={fx.fixture_id} />
             </div>
@@ -778,8 +879,8 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
       <div>
         <h2 className="font-semibold text-sm mb-2">Transaction history</h2>
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+          <table className="w-full min-w-[720px] text-sm">
             <thead className="bg-secondary"><tr><th className="text-left p-2">Checked out</th><th className="text-left p-2">Returned</th><th className="text-left p-2">Worker</th><th className="text-left p-2">Gatekeeper</th><th className="text-left p-2">Status</th></tr></thead>
             <tbody>
               {txs.map((t) => (
@@ -794,6 +895,17 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
               {txs.length === 0 && <tr><td colSpan={5} className="p-3 text-center text-muted-foreground">No history yet.</td></tr>}
             </tbody>
           </table>
+        </div>
+        <div className="md:hidden space-y-2">
+          {txs.map((t) => (
+            <MobileCard key={t.id} title={new Date(t.checked_out_at).toLocaleString()} subtitle={t.status}>
+              <MobileField label="Returned">{t.returned_at ? new Date(t.returned_at).toLocaleString() : "—"}</MobileField>
+              <MobileField label="Worker">{t.worker?.full_name ?? "—"}</MobileField>
+              <MobileField label="Employee ID">{t.worker?.employee_id ?? "—"}</MobileField>
+              <MobileField label="Gatekeeper">{t.gatekeeper?.full_name ?? "—"}</MobileField>
+            </MobileCard>
+          ))}
+          {txs.length === 0 && <EmptyMobileCard>No history yet.</EmptyMobileCard>}
         </div>
       </div>
 
@@ -1003,7 +1115,7 @@ function AddFixtureModal({ onClose, onDone }: { onClose: () => void; onDone: () 
             {types.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
           </select>
         </Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Weight (kg)"><input type="number" className="w-full rounded border border-border px-3 py-2 bg-background" value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
           <Field label="Description"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={500} value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
         </div>
@@ -1012,7 +1124,7 @@ function AddFixtureModal({ onClose, onDone }: { onClose: () => void; onDone: () 
           <LocationCascader value={slotId} onChange={setSlotId} />
         </div>
       </div>
-      <div className="mt-5 flex justify-end gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <button onClick={onClose} className="px-3 py-2 text-sm rounded border border-border">Cancel</button>
         <button disabled={busy} onClick={save} className="px-3 py-2 text-sm rounded bg-accent text-accent-foreground disabled:opacity-50">{busy ? "Creating…" : "Create"}</button>
       </div>
@@ -1055,7 +1167,7 @@ function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLo
       <div className="space-y-3 text-sm">
         <Field label="Fixture Name"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Model Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. NGF-2200, MT-4500-B" /></Field>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Weight (kg)"><input type="number" className="w-full rounded border border-border px-3 py-2 bg-background" value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
           <Field label="Status">
             <select className="w-full rounded border border-border px-3 py-2 bg-background" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}>
@@ -1071,7 +1183,7 @@ function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLo
           <LocationCascader value={slotId} onChange={setSlotId} includeSlotId={originalSlot} />
         </div>
       </div>
-      <div className="mt-5 flex justify-end gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <button onClick={onClose} className="px-3 py-2 text-sm rounded border border-border">Cancel</button>
         <button disabled={busy} onClick={save} className="px-3 py-2 text-sm rounded bg-accent text-accent-foreground disabled:opacity-50">{busy ? "Saving…" : "Save"}</button>
       </div>
@@ -1081,8 +1193,8 @@ function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLo
 
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-card rounded-xl p-6 max-w-lg w-full max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4 z-50" onClick={onClose}>
+      <div className="bg-card rounded-t-xl sm:rounded-xl p-4 sm:p-6 max-w-lg w-full max-h-[92vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         <h3 className="font-semibold text-lg mb-3">{title}</h3>
         {children}
       </div>
@@ -1116,8 +1228,8 @@ function BulkAssign({ onBack }: { onBack: () => void }) {
       <button onClick={onBack} className="text-xs text-muted-foreground flex items-center gap-1"><ChevronLeft className="h-3 w-3" /> Back to fixtures</button>
       <h1 className="text-2xl font-semibold">Assign Locations</h1>
       <p className="text-sm text-muted-foreground">Assign each fixture to its physical storage slot. Page stays open so you can assign one after another.</p>
-      <div className="rounded-xl border border-border bg-card overflow-auto">
-        <table className="w-full text-sm">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+        <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-secondary"><tr>
             <th className="text-left p-2">Fixture ID</th>
             <th className="text-left p-2">Model</th>
@@ -1144,6 +1256,22 @@ function BulkAssign({ onBack }: { onBack: () => void }) {
           </tbody>
         </table>
       </div>
+      <div className="md:hidden space-y-2">
+        {list.map((f) => {
+          const path = locationPathText(f);
+          return (
+            <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
+              <MobileField label="Model">{f.model_number || "—"}</MobileField>
+              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Current Location" full>{path ?? <span className="text-red-600">Not assigned</span>}</MobileField>
+              <div className="col-span-2 flex justify-end pt-1">
+                <button onClick={() => setEditing(f)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Edit Location</button>
+              </div>
+            </MobileCard>
+          );
+        })}
+        {list.length === 0 && <EmptyMobileCard>No fixtures.</EmptyMobileCard>}
+      </div>
       {editing && <AssignSlotModal fixture={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
     </div>
   );
@@ -1169,7 +1297,7 @@ function AssignSlotModal({ fixture, onClose, onSaved }: { fixture: FixtureWithLo
     <Modal onClose={onClose} title={`Assign location · ${fixture.fixture_id}`}>
       <div className="text-sm text-muted-foreground mb-3">{fixture.name}{fixture.model_number ? ` · Model: ${fixture.model_number}` : ""}</div>
       <LocationCascader value={slotId} onChange={setSlotId} includeSlotId={originalSlot} />
-      <div className="mt-5 flex justify-end gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <button onClick={onClose} className="px-3 py-2 text-sm rounded border border-border">Close</button>
         <button disabled={busy} onClick={save} className="px-3 py-2 text-sm rounded bg-accent text-accent-foreground disabled:opacity-50">{busy ? "Saving…" : "Save location"}</button>
       </div>
@@ -1203,11 +1331,11 @@ function Accounts({ role }: { role: "worker" | "gatekeeper" }) {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
         <h1 className="text-2xl font-semibold capitalize">{role === "worker" ? t("admin.workers") : t("admin.gatekeepers")}</h1>
-        <button onClick={() => setShowAdd(true)} className="bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> {role === "worker" ? t("admin.add_worker") : t("admin.add_gatekeeper")}</button>
+        <button onClick={() => setShowAdd(true)} className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> {role === "worker" ? t("admin.add_worker") : t("admin.add_gatekeeper")}</button>
       </div>
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-secondary"><tr><th className="text-left p-2">{t("admin.name")}</th><th className="text-left p-2">{t("admin.employee_id")}</th><th className="text-left p-2">{t("admin.department")}</th><th className="text-left p-2">{t("admin.status")}</th><th></th></tr></thead>
           <tbody>
@@ -1223,6 +1351,19 @@ function Accounts({ role }: { role: "worker" | "gatekeeper" }) {
             {list.length === 0 && <tr><td colSpan={5} className="p-3 text-center text-muted-foreground">No {role}s yet.</td></tr>}
           </tbody>
         </table>
+      </div>
+      <div className="md:hidden space-y-2">
+        {list.map((a) => (
+          <MobileCard key={a.id} title={a.full_name} subtitle={a.employee_id}>
+            <MobileField label={t("admin.department")}>{a.department ?? "—"}</MobileField>
+            <MobileField label={t("admin.status")}>{a.is_active ? <span className="text-green-700">{t("admin.active")}</span> : <span className="text-muted-foreground">{t("admin.inactive")}</span>}</MobileField>
+            <MobileField label={t("admin.phone")} full>{a.phone ?? "—"}</MobileField>
+            <div className="col-span-2 flex justify-end pt-1">
+              <button onClick={() => toggle(a)} className="text-xs px-3 py-1.5 rounded border border-border text-primary">{a.is_active ? t("admin.deactivate") : t("admin.activate")}</button>
+            </div>
+          </MobileCard>
+        ))}
+        {list.length === 0 && <EmptyMobileCard>No {role}s yet.</EmptyMobileCard>}
       </div>
       {showAdd && <AddAccountModal role={role} onClose={() => setShowAdd(false)} onDone={() => { setShowAdd(false); reload(); }} />}
     </div>
@@ -1304,7 +1445,7 @@ function AddAccountModal({ role, onClose, onDone }: { role: "worker" | "gatekeep
           );
         })}
       </div>
-      <div className="mt-5 flex justify-end gap-2">
+      <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <button onClick={onClose} className="px-3 py-2 text-sm rounded border border-border">{t("form.cancel")}</button>
         <button disabled={busy} onClick={save} className="px-3 py-2 text-sm rounded bg-accent text-accent-foreground disabled:opacity-50">{busy ? t("form.creating") : t("form.create")}</button>
       </div>

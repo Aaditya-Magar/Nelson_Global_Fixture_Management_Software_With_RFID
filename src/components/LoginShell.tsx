@@ -102,14 +102,14 @@ export function LoginShell({ scope, expectedRole, successPath, title, subtitle, 
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center px-4 ${themeCls}`}>
-      <div className={`w-full max-w-md rounded-2xl p-8 ${cardCls}`}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+    <div className={`min-h-screen w-full overflow-x-hidden flex items-center justify-center p-4 sm:p-6 ${themeCls}`}>
+      <div className={`w-full max-w-[calc(100vw-3rem)] sm:max-w-md min-w-0 rounded-2xl p-5 sm:p-8 ${cardCls}`}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight break-words">{title}</h1>
             {subtitle && <p className="mt-1 text-sm opacity-70">{subtitle}</p>}
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher className="w-full sm:w-auto" />
         </div>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>

@@ -90,33 +90,33 @@ export function GateActivity() {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-end">
-        <div>
+      <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-end">
+        <div className="col-span-2 sm:col-span-1">
           <label className="text-xs text-muted-foreground block">Date</label>
           <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)}
-            className="rounded-md bg-background border border-border px-3 py-2 text-sm" />
+            className="w-full rounded-md bg-background border border-border px-3 py-2 text-sm" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground block">Worker</label>
           <input value={workerFilter} onChange={(e) => setWorkerFilter(e.target.value)} placeholder="Search worker"
-            className="rounded-md bg-background border border-border px-3 py-2 text-sm" />
+            className="w-full rounded-md bg-background border border-border px-3 py-2 text-sm" />
         </div>
         <div>
           <label className="text-xs text-muted-foreground block">Result</label>
           <select value={resultFilter} onChange={(e) => setResultFilter(e.target.value as "all" | "opened" | "failed")}
-            className="rounded-md bg-background border border-border px-3 py-2 text-sm">
+            className="w-full rounded-md bg-background border border-border px-3 py-2 text-sm">
             <option value="all">All</option>
             <option value="opened">Opened</option>
             <option value="failed">Failed</option>
           </select>
         </div>
-        <button onClick={exportCsv} className="ml-auto flex items-center gap-1 text-xs px-3 py-2 rounded bg-primary text-primary-foreground">
+        <button onClick={exportCsv} className="col-span-2 sm:col-span-1 sm:ml-auto justify-center flex items-center gap-1 text-xs px-3 py-2 rounded bg-primary text-primary-foreground">
           <Download className="h-3 w-3" /> Export CSV
         </button>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-auto">
-        <table className="w-full text-xs">
+      <div className="hidden md:block rounded-xl border border-border bg-card overflow-auto">
+        <table className="w-full min-w-[780px] text-xs">
           <thead className="bg-secondary text-secondary-foreground">
             <tr>
               <th className="text-left p-2">Time</th>
@@ -150,6 +150,48 @@ export function GateActivity() {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="md:hidden space-y-2">
+        {filtered.map((r) => (
+          <div key={r.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium break-words">{r.fixtures?.fixture_id ?? "Fixture"}</div>
+                <div className="text-xs text-muted-foreground break-words">{r.fixtures?.name ?? ""}</div>
+              </div>
+              <span className={`shrink-0 text-[10px] uppercase font-semibold px-2 py-1 rounded ${r.gate_opened ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                {r.gate_opened ? "Opened" : "Failed"}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Time</div>
+                <div>{new Date(r.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" })}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Worker</div>
+                <div className="break-words">{r.worker?.full_name ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Gatekeeper</div>
+                <div className="break-words">{r.gatekeeper?.full_name ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Scans</div>
+                <div>{r.scan_1_verified ? "OK" : "Fail"} / {r.scan_2_verified ? "OK" : "Fail"}</div>
+              </div>
+              {r.failure_reason && (
+                <div className="col-span-2">
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Failure</div>
+                  <div className="break-words text-muted-foreground">{r.failure_reason}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-5 text-center text-sm text-muted-foreground">No gate activity yet.</div>
+        )}
       </div>
     </div>
   );

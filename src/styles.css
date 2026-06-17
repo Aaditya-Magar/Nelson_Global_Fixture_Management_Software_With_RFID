@@ -103,7 +103,10 @@
 
 @layer base {
   * { border-color: var(--color-border); }
+  html { overflow-x: hidden; }
   body { background-color: var(--color-background); color: var(--color-foreground); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  body { overflow-x: hidden; }
+  button, input, select, textarea { font: inherit; }
 }
 
 @keyframes ready-pulse {
