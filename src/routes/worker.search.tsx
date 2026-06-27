@@ -22,18 +22,10 @@ function WorkerSearch() {
   const { profile } = useAuth();
   const { t } = useI18n();
   const [query, setQuery] = useState("");
-  const [typeId, setTypeId] = useState<string>("");
-  const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
   const [results, setResults] = useState<FixtureRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
   const [busyId, setBusyId] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.from("fixture_types").select("id,name").order("name").then(({ data }) => {
-      setTypes((data as { id: string; name: string }[]) ?? []);
-    });
-  }, []);
 
   // Pre-populate "already requested" set for active requests by this worker.
   useEffect(() => {
@@ -57,13 +49,9 @@ function WorkerSearch() {
     setLoading(true);
     const tt = setTimeout(async () => {
       let qb = supabase.from("fixtures").select(FIXTURE_LOCATION_SELECT).order("name").limit(40);
-      if (typeId) qb = qb.eq("fixture_type_id", typeId);
       if (q) {
         const safe = q.replace(/[%,]/g, "");
-        const { data: typeMatches } = await supabase.from("fixture_types").select("id").ilike("name", `%${safe}%`);
-        const typeIds = (typeMatches ?? []).map((t: { id: string }) => t.id);
-        const ors = [`name.ilike.%${safe}%`, `model_number.ilike.%${safe}%`, `fixture_id.ilike.%${safe}%`];
-        if (typeIds.length) ors.push(`fixture_type_id.in.(${typeIds.join(",")})`);
+        const ors = [`name.ilike.%${safe}%`, `customer.ilike.%${safe}%`, `customer_no.ilike.%${safe}%`, `ngp_no.ilike.%${safe}%`, `fixture_id.ilike.%${safe}%`];
         qb = qb.or(ors.join(","));
       }
       const { data, error } = await qb;
@@ -88,7 +76,7 @@ function WorkerSearch() {
       setLoading(false);
     }, 250);
     return () => clearTimeout(tt);
-  }, [query, typeId]);
+  }, [query]);
 
   const handleScan = (text: string) => setQuery(text.trim());
 
@@ -128,17 +116,6 @@ function WorkerSearch() {
         <ScannerButton onResult={handleScan} />
       </div>
 
-      <select
-        value={typeId}
-        onChange={(e) => setTypeId(e.target.value)}
-        className="w-full rounded-md bg-card border border-border px-3 py-2.5 text-sm"
-      >
-        <option value="">{t("worker.all_types")}</option>
-        {types.map((tt) => (
-          <option key={tt.id} value={tt.id}>{tt.name}</option>
-        ))}
-      </select>
-
       {loading && <div className="text-sm text-muted-foreground">{t("worker.searching")}</div>}
       {!loading && results.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">{t("worker.no_results")}</div>
@@ -172,8 +149,9 @@ function FixtureCard({ fixture, requested, busy, onRequest, t }: { fixture: Fixt
         <div className="min-w-0">
           <div className="font-mono text-xs text-muted-foreground">{fixture.fixture_id}</div>
           <div className="font-medium truncate">{fixture.name}</div>
-          <div className="text-xs text-muted-foreground mt-0.5">{fixture.fixture_types?.name ?? "—"}</div>
-          <div className="text-xs text-muted-foreground">Model: {fixture.model_number || "—"}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">Customer: {fixture.customer || "—"}</div>
+          <div className="text-xs text-muted-foreground">Customer No.: {fixture.customer_no || "—"}</div>
+          <div className="text-xs text-muted-foreground">NGP No.: {fixture.ngp_no || "—"}</div>
           <FixtureLocationBadge current_slot={fixture.current_slot} className="mt-1" />
         </div>
         <span className={`text-[10px] uppercase font-semibold px-2 py-1 rounded ${statusCls}`}>

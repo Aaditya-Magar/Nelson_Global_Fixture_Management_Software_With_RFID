@@ -18,7 +18,7 @@ type Req = {
   return_status?: string | null;
   notes: string | null;
   gate_status?: string | null;
-  request_items: { id: string; fixtures: { fixture_id: string; name: string; model_number: string | null } | null }[];
+  request_items: { id: string; fixtures: { fixture_id: string; name: string; customer_no: string | null; ngp_no: string | null } | null }[];
   collector?: { full_name: string } | null;
 };
 
@@ -36,7 +36,7 @@ function WorkerRequests() {
     const load = async () => {
       const { data } = await supabase
         .from("requests")
-        .select("id,status,created_at,collected_at,returned_at,return_status,notes,gate_status,request_items(id,fixtures(fixture_id,name,model_number))")
+        .select("id,status,created_at,collected_at,returned_at,return_status,notes,gate_status,request_items(id,fixtures(fixture_id,name,customer_no,ngp_no))")
         .eq("worker_id", profile.id)
         .order("created_at", { ascending: false })
         .limit(50);
@@ -99,7 +99,7 @@ function WorkerRequests() {
               {r.request_items.map((it) => (
                 <div key={it.id}>
                   <div className="truncate">• {it.fixtures?.name ?? "—"} <span className="font-mono text-xs text-muted-foreground">{it.fixtures?.fixture_id}</span></div>
-                  <div className="text-xs text-muted-foreground pl-3">Model: {it.fixtures?.model_number || "—"}</div>
+                  <div className="text-xs text-muted-foreground pl-3">Customer No.: {it.fixtures?.customer_no || "—"} · NGP: {it.fixtures?.ngp_no || "—"}</div>
                 </div>
               ))}
             </div>

@@ -1,4 +1,4 @@
-// Minimal hand-written types matching the SQL schema.
+// Minimal hand-written types for the tables and columns used by the app.
 export type UUID = string;
 
 export interface Profile {
@@ -16,14 +16,14 @@ export interface Zone { id: UUID; name: string; description: string | null; crea
 export interface Rack { id: UUID; zone_id: UUID; name: string; nfc_tag_id: string | null; created_at: string; }
 export interface Row  { id: UUID; rack_id: UUID; name: string; nfc_tag_id: string | null; created_at: string; }
 export interface Slot { id: UUID; row_id: UUID; name: string; is_occupied: boolean; created_at: string; }
-export interface FixtureType { id: UUID; code: string; name: string; description: string | null; created_at: string; }
 
 export interface Fixture {
   id: UUID;
   fixture_id: string;
   name: string;
-  model_number: string | null;
-  fixture_type_id: UUID | null;
+  customer: string | null;
+  customer_no: string | null;
+  ngp_no: string | null;
   home_slot_id: UUID | null;
   current_slot_id: UUID | null;
   status: "available" | "checked_out" | "maintenance";
@@ -88,7 +88,6 @@ export type Database = {
       racks:              { Row: Rack;         Insert: Partial<Rack> & { name: string; zone_id: UUID };          Update: Partial<Rack> };
       rows:               { Row: Row;          Insert: Partial<Row> & { name: string; rack_id: UUID };           Update: Partial<Row> };
       slots:              { Row: Slot;         Insert: Partial<Slot> & { name: string; row_id: UUID };           Update: Partial<Slot> };
-      fixture_types:      { Row: FixtureType;  Insert: Partial<FixtureType> & { code: string; name: string };    Update: Partial<FixtureType> };
       fixtures:           { Row: Fixture;      Insert: Partial<Fixture> & { fixture_id: string; name: string };  Update: Partial<Fixture> };
       requests:           { Row: Request;      Insert: Partial<Request> & { worker_id: UUID };                   Update: Partial<Request> };
       request_items:      { Row: RequestItem;  Insert: Partial<RequestItem> & { request_id: UUID; fixture_id: UUID }; Update: Partial<RequestItem> };

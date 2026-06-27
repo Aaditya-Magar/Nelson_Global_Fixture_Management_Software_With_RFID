@@ -97,7 +97,8 @@ export function useAutoStopScanner(onResult: (text: string) => void) {
 }
 
 function stopVideoTracks(video: HTMLVideoElement | null) {
-  const stream = video?.srcObject;
+  if (!video) return;
+  const stream = video.srcObject;
   if (!(stream instanceof MediaStream)) return;
   stream.getTracks().forEach((track) => track.stop());
   video.srcObject = null;

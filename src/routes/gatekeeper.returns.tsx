@@ -106,7 +106,7 @@ function GatekeeperReturns() {
     const sorted = [...rows].sort((a, b) => new Date(a.checked_out_at).getTime() - new Date(b.checked_out_at).getTime());
     if (!term) return sorted;
     return sorted.filter((r) => {
-      const hay = `${r.fixtures?.fixture_id ?? ""} ${r.fixtures?.name ?? ""} ${r.fixtures?.model_number ?? ""} ${r.worker?.full_name ?? ""} ${r.worker?.employee_id ?? ""}`.toLowerCase();
+      const hay = `${r.fixtures?.fixture_id ?? ""} ${r.fixtures?.name ?? ""} ${r.fixtures?.customer_no ?? ""} ${r.fixtures?.ngp_no ?? ""} ${r.worker?.full_name ?? ""} ${r.worker?.employee_id ?? ""}`.toLowerCase();
       return hay.includes(term);
     });
   }, [rows, q]);
@@ -322,7 +322,7 @@ function GatekeeperReturns() {
                   <span className="text-[10px] uppercase font-semibold px-2 py-0.5 rounded bg-red-100 text-red-800">Checked Out</span>
                 </div>
                 <div className="font-medium text-sm mt-0.5 break-words">{r.fixtures?.name}</div>
-                <div className="text-xs text-muted-foreground">Model: {r.fixtures?.model_number || "—"}</div>
+                <div className="text-xs text-muted-foreground">Customer No.: {r.fixtures?.customer_no || "—"} · NGP: {r.fixtures?.ngp_no || "—"}</div>
                 <div className="text-xs text-muted-foreground flex items-start gap-1 mt-1"><MapPin className="h-3 w-3 mt-0.5 shrink-0" /> <span className="min-w-0 break-words">{locationPathText(r.fixtures) ?? "—"}</span></div>
                 <div className="mt-2 text-xs break-words">👤 {r.worker?.full_name} ({r.worker?.employee_id})</div>
                 <div className="mt-1 text-xs flex items-center gap-1.5">
@@ -385,7 +385,7 @@ function GatekeeperReturns() {
               <div className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-5 w-5" /> RETURN CONFIRMED</div>
               <div className="font-mono text-xs mt-2">{scan.row.fixtures?.fixture_id}</div>
               <div className="font-semibold">{scan.row.fixtures?.name}</div>
-              <div className="text-xs">Model: {scan.row.fixtures?.model_number || "—"}</div>
+              <div className="text-xs">Customer No.: {scan.row.fixtures?.customer_no || "—"} · NGP: {scan.row.fixtures?.ngp_no || "—"}</div>
               <div className="text-xs mt-1">Returned by: {scan.row.worker?.full_name} ({scan.row.worker?.employee_id})</div>
               <div className="text-xs">Stored at: {scan.rackName} - {scan.rowName}</div>
               <div className="text-xs">Was out for: {durationText(scan.durationMs).text}</div>

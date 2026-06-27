@@ -30,7 +30,7 @@ export const Route = createFileRoute("/admin")({
   ),
 });
 
-type Tab = "dashboard" | "locations" | "types" | "fixtures" | "workers" | "gatekeepers" | "gate";
+type Tab = "dashboard" | "locations" | "fixtures" | "workers" | "gatekeepers" | "gate";
 
 function AdminApp() {
   const { profile, signOut } = useAuth();
@@ -41,7 +41,6 @@ function AdminApp() {
   const tabs: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: "dashboard", label: t("nav.dashboard"), icon: BarChart3 },
     { id: "locations", label: t("nav.locations"), icon: MapPin },
-    { id: "types", label: t("nav.types"), icon: Layers },
     { id: "fixtures", label: t("nav.fixtures"), icon: Package },
     { id: "workers", label: t("nav.workers"), icon: Users },
     { id: "gatekeepers", label: t("nav.gatekeepers"), icon: ShieldCheck },
@@ -84,7 +83,6 @@ function AdminApp() {
       <main className="flex-1 w-full max-w-full p-4 sm:p-6 overflow-x-hidden lg:overflow-auto min-w-0">
         {tab === "dashboard" && <Dashboard />}
         {tab === "locations" && <Locations />}
-        {tab === "types" && <FixtureTypes />}
         {tab === "fixtures" && <Fixtures />}
         {tab === "workers" && <Accounts role="worker" />}
         {tab === "gatekeepers" && <Accounts role="gatekeeper" />}
@@ -98,7 +96,7 @@ function AdminApp() {
 function Dashboard() {
   const { t } = useI18n();
   const [stats, setStats] = useState({ total: 0, available: 0, checkedOut: 0, maintenance: 0, pending: 0 });
-  type RecentRow = { id: string; checked_out_at: string; returned_at: string | null; status: string; fixtures: { name: string; fixture_id: string; model_number: string | null } | null; worker: { full_name: string } | null; gatekeeper: { full_name: string } | null };
+  type RecentRow = { id: string; checked_out_at: string; returned_at: string | null; status: string; fixtures: { name: string; fixture_id: string; customer_no: string | null; ngp_no: string | null } | null; worker: { full_name: string } | null; gatekeeper: { full_name: string } | null };
   const [recent, setRecent] = useState<RecentRow[]>([]);
   useEffect(() => {
     const load = async () => {
@@ -108,7 +106,7 @@ function Dashboard() {
         supabase.from("fixtures").select("id", { count: "exact", head: true }).eq("status", "checked_out"),
         supabase.from("fixtures").select("id", { count: "exact", head: true }).eq("status", "maintenance"),
         supabase.from("requests").select("id", { count: "exact", head: true }).in("status", ["pending", "preparing", "ready"]),
-        supabase.from("transactions").select("id,checked_out_at,returned_at,status,fixtures(name,fixture_id,model_number),worker:profiles!transactions_worker_id_fkey(full_name),gatekeeper:profiles!transactions_gatekeeper_id_fkey(full_name)").order("checked_out_at", { ascending: false }).limit(15),
+        supabase.from("transactions").select("id,checked_out_at,returned_at,status,fixtures(name,fixture_id,customer_no,ngp_no),worker:profiles!transactions_worker_id_fkey(full_name),gatekeeper:profiles!transactions_gatekeeper_id_fkey(full_name)").order("checked_out_at", { ascending: false }).limit(15),
       ]);
       setStats({ total: tot.count ?? 0, available: av.count ?? 0, checkedOut: co.count ?? 0, maintenance: mn.count ?? 0, pending: pn.count ?? 0 });
       setRecent((rc.data as unknown as RecentRow[]) ?? []);
@@ -132,7 +130,8 @@ function Dashboard() {
           <table className="w-full min-w-[760px] text-sm">
             <thead className="bg-secondary"><tr>
               <th className="text-left p-2">{t("admin.fixture")}</th>
-              <th className="text-left p-2">{t("admin.model")}</th>
+              <th className="text-left p-2">Customer No.</th>
+              <th className="text-left p-2">NGP No.</th>
               <th className="text-left p-2">{t("admin.worker")}</th>
               <th className="text-left p-2">{t("admin.gatekeeper")}</th>
               <th className="text-left p-2">{t("gk.checked_out_at")}</th>
@@ -143,7 +142,8 @@ function Dashboard() {
               {recent.map((r) => (
                 <tr key={r.id} className="border-t border-border">
                   <td className="p-2">{r.fixtures?.name} <span className="font-mono text-xs text-muted-foreground">{r.fixtures?.fixture_id}</span></td>
-                  <td className="p-2">{r.fixtures?.model_number || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{r.fixtures?.customer_no || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{r.fixtures?.ngp_no || <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2">{r.worker?.full_name ?? "—"}</td>
                   <td className="p-2">{r.gatekeeper?.full_name ?? "—"}</td>
                   <td className="p-2 whitespace-nowrap">{fmt(r.checked_out_at)}</td>
@@ -151,14 +151,15 @@ function Dashboard() {
                   <td className="p-2"><span className={`text-[10px] uppercase font-semibold px-2 py-1 rounded ${r.status === "returned" ? "bg-gray-200 text-gray-700" : "bg-red-100 text-red-800"}`}>{r.status}</span></td>
                 </tr>
               ))}
-              {recent.length === 0 && <tr><td className="p-3 text-center text-muted-foreground" colSpan={7}>{t("admin.no_transactions")}</td></tr>}
+              {recent.length === 0 && <tr><td className="p-3 text-center text-muted-foreground" colSpan={8}>{t("admin.no_transactions")}</td></tr>}
             </tbody>
           </table>
         </div>
         <div className="md:hidden space-y-2">
           {recent.map((r) => (
             <MobileCard key={r.id} title={r.fixtures?.name ?? "Fixture"} subtitle={r.fixtures?.fixture_id}>
-              <MobileField label={t("admin.model")}>{r.fixtures?.model_number || "—"}</MobileField>
+              <MobileField label="Customer No.">{r.fixtures?.customer_no || "—"}</MobileField>
+              <MobileField label="NGP No.">{r.fixtures?.ngp_no || "—"}</MobileField>
               <MobileField label={t("admin.worker")}>{r.worker?.full_name ?? "—"}</MobileField>
               <MobileField label={t("admin.gatekeeper")}>{r.gatekeeper?.full_name ?? "—"}</MobileField>
               <MobileField label={t("gk.checked_out_at")}>{fmt(r.checked_out_at)}</MobileField>
@@ -188,38 +189,34 @@ function AllFixturesAndLocations() {
   const [list, setList] = useState<FixtureWithLocation[]>([]);
   const [q, setQ] = useState("");
   const [zoneFilter, setZoneFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
-  const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
 
   useEffect(() => {
     supabase.from("fixtures").select(FIXTURE_LOCATION_SELECT).order("fixture_id").then(({ data }) => {
       setList((data as unknown as FixtureWithLocation[]) ?? []);
     });
     supabase.from("zones").select("id,name").order("name").then(({ data }) => setZones((data as { id: string; name: string }[]) ?? []));
-    supabase.from("fixture_types").select("id,name").order("name").then(({ data }) => setTypes((data as { id: string; name: string }[]) ?? []));
   }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return list.filter((f) => {
       if (term) {
-        const hay = `${f.fixture_id} ${f.name} ${f.model_number ?? ""}`.toLowerCase();
+        const hay = `${f.fixture_id} ${f.name} ${f.customer ?? ""} ${f.customer_no ?? ""} ${f.ngp_no ?? ""}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
-      if (typeFilter && f.fixture_type_id !== typeFilter) return false;
       if (statusFilter && f.status !== statusFilter) return false;
       if (zoneFilter && f.current_slot?.row?.rack?.zone?.id !== zoneFilter) return false;
       return true;
     });
-  }, [list, q, zoneFilter, typeFilter, statusFilter]);
+  }, [list, q, zoneFilter, statusFilter]);
 
   const exportCsv = () => {
-    const header = ["Fixture ID", "Name", "Model Number", "Type", "Zone", "Rack", "Row", "Slot", "Status"];
+    const header = ["Fixture ID", "Name", "Customer", "Customer No.", "NGP No.", "Zone", "Rack", "Row", "Slot", "Status"];
     const rows = filtered.map((f) => {
       const p = locationParts(f);
-      return [f.fixture_id, f.name, f.model_number ?? "", f.fixture_types?.name ?? "", p?.zone ?? "", p?.rack ?? "", p?.row ?? "", p?.slot ?? "", f.status];
+      return [f.fixture_id, f.name, f.customer ?? "", f.customer_no ?? "", f.ngp_no ?? "", p?.zone ?? "", p?.rack ?? "", p?.row ?? "", p?.slot ?? "", f.status];
     });
     const csv = [header, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
@@ -235,15 +232,11 @@ function AllFixturesAndLocations() {
         <h2 className="font-semibold">All Fixtures and Locations</h2>
         <button onClick={exportCsv} className="w-full sm:w-auto justify-center text-xs px-3 py-2 rounded border border-border flex items-center gap-1"><Download className="h-3.5 w-3.5" /> Export CSV</button>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, model…" className="rounded border border-border px-3 py-2 bg-background text-sm" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, customer, NGP..." className="rounded border border-border px-3 py-2 bg-background text-sm" />
         <select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
           <option value="">All zones</option>
           {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-        </select>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
-          <option value="">All types</option>
-          {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
           <option value="">All statuses</option>
@@ -258,8 +251,9 @@ function AllFixturesAndLocations() {
             <tr>
               <th className="text-left p-2">Fixture ID</th>
               <th className="text-left p-2">Name</th>
-              <th className="text-left p-2">Model</th>
-              <th className="text-left p-2">Type</th>
+              <th className="text-left p-2">Customer</th>
+              <th className="text-left p-2">Customer No.</th>
+              <th className="text-left p-2">NGP No.</th>
               <th className="text-left p-2">Zone</th>
               <th className="text-left p-2">Rack</th>
               <th className="text-left p-2">Row</th>
@@ -274,8 +268,9 @@ function AllFixturesAndLocations() {
                 <tr key={f.id} className="border-t border-border">
                   <td className="p-2 font-mono text-xs">{f.fixture_id}</td>
                   <td className="p-2">{f.name}</td>
-                  <td className="p-2">{f.model_number || <span className="text-muted-foreground">—</span>}</td>
-                  <td className="p-2">{f.fixture_types?.name ?? "—"}</td>
+                  <td className="p-2">{f.customer || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{f.customer_no || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{f.ngp_no || <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2">{p?.zone ?? <span className="text-red-600 text-xs">—</span>}</td>
                   <td className="p-2">{p?.rack ?? "—"}</td>
                   <td className="p-2">{p?.row ?? "—"}</td>
@@ -284,7 +279,7 @@ function AllFixturesAndLocations() {
                 </tr>
               );
             })}
-            {filtered.length === 0 && <tr><td colSpan={9} className="p-3 text-center text-muted-foreground">No fixtures.</td></tr>}
+            {filtered.length === 0 && <tr><td colSpan={10} className="p-3 text-center text-muted-foreground">No fixtures.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -293,8 +288,9 @@ function AllFixturesAndLocations() {
           const p = locationParts(f);
           return (
             <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
-              <MobileField label="Model">{f.model_number || "—"}</MobileField>
-              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Customer">{f.customer || "—"}</MobileField>
+              <MobileField label="Customer No.">{f.customer_no || "—"}</MobileField>
+              <MobileField label="NGP No.">{f.ngp_no || "—"}</MobileField>
               <MobileField label="Location">{p ? `${p.zone} -> ${p.rack} -> ${p.row} -> ${p.slot}` : <span className="text-red-600">Not assigned</span>}</MobileField>
               <MobileField label="Status"><StatusBadge status={f.status} /></MobileField>
             </MobileCard>
@@ -351,7 +347,7 @@ function Locations() {
   const [racks, setRacks] = useState<Rack[]>([]);
   const [rows, setRows] = useState<Row[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
-  const [slotFx, setSlotFx] = useState<Map<string, { id: string; fixture_id: string; name: string; model_number: string | null }>>(new Map());
+  const [slotFx, setSlotFx] = useState<Map<string, { id: string; fixture_id: string; name: string; customer_no: string | null; ngp_no: string | null }>>(new Map());
   const [openZones, setOpenZones] = useState<Set<string>>(new Set());
   const [openRacks, setOpenRacks] = useState<Set<string>>(new Set());
   const [openRows, setOpenRows] = useState<Set<string>>(new Set());
@@ -362,14 +358,14 @@ function Locations() {
       supabase.from("racks").select("*").order("name"),
       supabase.from("rows").select("*").order("name"),
       supabase.from("slots").select("*").order("name"),
-      supabase.from("fixtures").select("id,fixture_id,name,model_number,current_slot_id").not("current_slot_id", "is", null),
+      supabase.from("fixtures").select("id,fixture_id,name,customer_no,ngp_no,current_slot_id").not("current_slot_id", "is", null),
     ]);
     setZones((z.data as Zone[]) ?? []);
     setRacks((r.data as Rack[]) ?? []);
     setRows((ro.data as Row[]) ?? []);
     setSlots((sl.data as Slot[]) ?? []);
-    const m = new Map<string, { id: string; fixture_id: string; name: string; model_number: string | null }>();
-    (fx.data as { id: string; fixture_id: string; name: string; model_number: string | null; current_slot_id: string }[] | null)?.forEach((f) => m.set(f.current_slot_id, f));
+    const m = new Map<string, { id: string; fixture_id: string; name: string; customer_no: string | null; ngp_no: string | null }>();
+    (fx.data as { id: string; fixture_id: string; name: string; customer_no: string | null; ngp_no: string | null; current_slot_id: string }[] | null)?.forEach((f) => m.set(f.current_slot_id, f));
     setSlotFx(m);
     // auto-open first zone on initial load
     if ((z.data?.length ?? 0) > 0 && openZones.size === 0) setOpenZones(new Set([(z.data as Zone[])[0].id]));
@@ -594,73 +590,6 @@ function IconBtn({ onClick, variant }: { onClick: () => void; variant: "edit" | 
   );
 }
 
-// ============= FIXTURE TYPES =============
-function FixtureTypes() {
-  const { t } = useI18n();
-  const [types, setTypes] = useState<{ id: string; code: string; name: string; description: string | null }[]>([]);
-  const reload = async () => { const { data } = await supabase.from("fixture_types").select("*").order("code"); setTypes((data as typeof types) ?? []); };
-  useEffect(() => { reload(); }, []);
-  const add = async () => {
-    const code = prompt("Type code (3 digits e.g. 001)?")?.trim();
-    if (!code || !/^\d{3}$/.test(code)) { toast.error("Code must be 3 digits"); return; }
-    const name = prompt("Type name?")?.trim();
-    if (!name) return;
-    const desc = prompt("Description? (optional)")?.trim() || null;
-    const { error } = await supabase.from("fixture_types").insert({ code, name: sanitizeText(name, 100), description: desc ? sanitizeText(desc, 500) : null });
-    if (error) toast.error("Type could not be created. Check code and name."); else reload();
-  };
-  const edit = async (row: { id: string; code: string; name: string; description: string | null }) => {
-    const code = prompt("Type code (3 digits e.g. 001)?", row.code)?.trim();
-    if (!code || !/^\d{3}$/.test(code)) { toast.error("Code must be 3 digits"); return; }
-    const name = prompt("Type name?", row.name)?.trim();
-    if (!name) { toast.error("Name is required"); return; }
-    const desc = prompt("Description? (optional)", row.description ?? "")?.trim() || null;
-    const { error } = await supabase.from("fixture_types").update({ code, name: sanitizeText(name, 100), description: desc ? sanitizeText(desc, 500) : null }).eq("id", row.id);
-    if (error) toast.error("Type could not be updated. Check code and name."); else { toast.success("Type updated"); reload(); }
-  };
-  const remove = async (row: { id: string; name: string }) => {
-    if (!confirm(`Delete fixture type "${row.name}"?`)) return;
-    const { error } = await supabase.from("fixture_types").delete().eq("id", row.id);
-    if (error) toast.error("Type is used by fixtures. Move those fixtures to another type first."); else { toast.success("Type deleted"); reload(); }
-  };
-  return (
-    <div>
-      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
-        <h1 className="text-2xl font-semibold">{t("admin.fixture_types")}</h1>
-        <button onClick={add} className="w-full sm:w-auto justify-center bg-primary text-primary-foreground px-3 py-2 rounded text-sm flex items-center gap-1"><Plus className="h-4 w-4" /> {t("admin.add_type")}</button>
-      </div>
-      <div className="hidden md:block rounded-xl border border-border bg-card overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-secondary"><tr><th className="text-left p-2">{t("admin.code")}</th><th className="text-left p-2">{t("admin.name")}</th><th className="text-left p-2">{t("admin.description")}</th><th className="text-right p-2">{t("admin.actions")}</th></tr></thead>
-          <tbody>
-            {types.map((t) => (
-              <tr key={t.id} className="border-t border-border">
-                <td className="p-2 font-mono">{t.code}</td>
-                <td className="p-2">{t.name}</td>
-                <td className="p-2 text-muted-foreground">{t.description ?? "—"}</td>
-                <td className="p-2 text-right"><div className="inline-flex gap-1"><IconBtn onClick={() => edit(t)} variant="edit" /><IconBtn onClick={() => remove(t)} variant="delete" /></div></td>
-              </tr>
-            ))}
-            {types.length === 0 && <tr><td colSpan={4} className="p-3 text-center text-muted-foreground">{t("admin.no_types")}</td></tr>}
-          </tbody>
-        </table>
-      </div>
-      <div className="md:hidden space-y-2">
-        {types.map((row) => (
-          <MobileCard key={row.id} title={row.name} subtitle={row.code}>
-            <MobileField label={t("admin.description")} full>{row.description ?? "—"}</MobileField>
-            <div className="col-span-2 flex justify-end gap-1 pt-1">
-              <IconBtn onClick={() => edit(row)} variant="edit" />
-              <IconBtn onClick={() => remove(row)} variant="delete" />
-            </div>
-          </MobileCard>
-        ))}
-        {types.length === 0 && <EmptyMobileCard>{t("admin.no_types")}</EmptyMobileCard>}
-      </div>
-    </div>
-  );
-}
-
 // ============= FIXTURES =============
 type View = { kind: "list" } | { kind: "detail"; id: string } | { kind: "assign" };
 
@@ -675,10 +604,8 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
   const [list, setList] = useState<FixtureWithLocation[]>([]);
   const [q, setQ] = useState("");
   const [zoneFilter, setZoneFilter] = useState("");
-  const [typeFilter, setTypeFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [zones, setZones] = useState<{ id: string; name: string }[]>([]);
-  const [types, setTypes] = useState<{ id: string; name: string }[]>([]);
   const [showAdd, setShowAdd] = useState(false);
 
   const reload = async () => {
@@ -688,22 +615,20 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
   useEffect(() => {
     reload();
     supabase.from("zones").select("id,name").order("name").then(({ data }) => setZones((data as { id: string; name: string }[]) ?? []));
-    supabase.from("fixture_types").select("id,name").order("name").then(({ data }) => setTypes((data as { id: string; name: string }[]) ?? []));
   }, []);
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
     return list.filter((f) => {
       if (term) {
-        const hay = `${f.fixture_id} ${f.name} ${f.model_number ?? ""} ${f.fixture_types?.name ?? ""}`.toLowerCase();
+        const hay = `${f.fixture_id} ${f.name} ${f.customer ?? ""} ${f.customer_no ?? ""} ${f.ngp_no ?? ""}`.toLowerCase();
         if (!hay.includes(term)) return false;
       }
-      if (typeFilter && f.fixture_type_id !== typeFilter) return false;
       if (statusFilter && f.status !== statusFilter) return false;
       if (zoneFilter && f.current_slot?.row?.rack?.zone?.id !== zoneFilter) return false;
       return true;
     });
-  }, [list, q, zoneFilter, typeFilter, statusFilter]);
+  }, [list, q, zoneFilter, statusFilter]);
 
   return (
     <div>
@@ -715,15 +640,11 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mb-3">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, model, type…" className="rounded border border-border px-3 py-2 bg-background text-sm" />
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mb-3">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search ID, name, customer, NGP..." className="rounded border border-border px-3 py-2 bg-background text-sm" />
         <select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
           <option value="">All zones</option>
           {zones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-        </select>
-        <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
-          <option value="">All types</option>
-          {types.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded border border-border px-3 py-2 bg-background text-sm">
           <option value="">All statuses</option>
@@ -738,8 +659,8 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
           <thead className="bg-secondary"><tr>
             <th className="text-left p-2">Fixture ID</th>
             <th className="text-left p-2">Name</th>
-            <th className="text-left p-2">Model</th>
-            <th className="text-left p-2">Type</th>
+            <th className="text-left p-2">Customer No.</th>
+            <th className="text-left p-2">NGP No.</th>
             <th className="text-left p-2">Location</th>
             <th className="text-left p-2">Status</th>
             <th className="text-left p-2">NFC</th>
@@ -752,8 +673,9 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
                 <tr key={f.id} className="border-t border-border">
                   <td className="p-2 font-mono text-xs">{f.fixture_id}</td>
                   <td className="p-2">{f.name}</td>
-                  <td className="p-2">{f.model_number || <span className="text-muted-foreground">—</span>}</td>
-                  <td className="p-2">{f.fixture_types?.name ?? "—"}</td>
+                  <td className="p-2">{f.customer || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{f.customer_no || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{f.ngp_no || <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2">{path ? <span className="text-xs">{path}</span> : <span className="text-xs text-red-600">Not assigned</span>}</td>
                   <td className="p-2"><StatusBadge status={f.status} /></td>
                   <td className="p-2">
@@ -777,8 +699,9 @@ function FixturesList({ onOpen, onAssign }: { onOpen: (id: string) => void; onAs
           const path = locationPathText(f);
           return (
             <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
-              <MobileField label="Model">{f.model_number || "—"}</MobileField>
-              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Customer">{f.customer || "—"}</MobileField>
+              <MobileField label="Customer No.">{f.customer_no || "—"}</MobileField>
+              <MobileField label="NGP No.">{f.ngp_no || "—"}</MobileField>
               <MobileField label="Location" full>{path || <span className="text-red-600">Not assigned</span>}</MobileField>
               <MobileField label="Status"><StatusBadge status={f.status} /></MobileField>
               <MobileField label="NFC"><NfcBadge tagId={f.nfc_tag_id ?? null} /></MobileField>
@@ -829,8 +752,8 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <div className="font-mono font-bold text-3xl">{fx.fixture_id}</div>
           <div className="text-2xl mt-1">{fx.name}</div>
           <div className="text-sm text-muted-foreground mt-1">
-            <span className="font-medium">Model Number:</span>{" "}
-            {fx.model_number ? <span>{fx.model_number}</span> : <span className="text-muted-foreground">—</span>}
+            <span className="font-medium">Customer No.:</span>{" "}
+            {fx.customer_no ? <span>{fx.customer_no}</span> : <span className="text-muted-foreground">—</span>}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
@@ -843,7 +766,7 @@ function FixtureDetail({ id, onBack }: { id: string; onBack: () => void }) {
 
       <div className="grid md:grid-cols-2 gap-4">
         <div className="rounded-xl border border-border bg-card p-4 space-y-2 text-sm">
-          <Row label="Type">{fx.fixture_types?.name ?? "—"}</Row>
+          <Row label="NGP No.">{fx.ngp_no ?? "—"}</Row>
           <Row label="Location">
             {p ? (
               <span className="flex items-center gap-1 flex-wrap">
@@ -1062,32 +985,31 @@ function RegisterNFCButton({
 // ============= ADD / EDIT FIXTURE =============
 function AddFixtureModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState("");
-  const [model, setModel] = useState("");
-  const [typeId, setTypeId] = useState("");
+  const [customer, setCustomer] = useState("");
+  const [customerNo, setCustomerNo] = useState("");
+  const [ngpNo, setNgpNo] = useState("");
   const [weight, setWeight] = useState("");
   const [desc, setDesc] = useState("");
   const [slotId, setSlotId] = useState<string | null>(null);
-  const [types, setTypes] = useState<{ id: string; code: string; name: string }[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    supabase.from("fixture_types").select("id,code,name").order("code").then(({ data }) => setTypes((data as { id: string; code: string; name: string }[]) ?? []));
   }, []);
 
   const save = async () => {
-    const type = types.find((t) => t.id === typeId);
-    if (!type || !name) { toast.error("Name and type are required"); return; }
+    if (!name.trim()) { toast.error("Fixture name is required"); return; }
     setBusy(true);
-    const { data: cur } = await supabase.from("fixture_id_counters").select("last_number").eq("fixture_type_code", type.code).maybeSingle();
+    const { data: cur } = await supabase.from("fixture_id_counters").select("last_number").eq("fixture_type_code", "000").maybeSingle();
     const next = ((cur as { last_number: number } | null)?.last_number ?? 0) + 1;
-    await supabase.from("fixture_id_counters").upsert({ fixture_type_code: type.code, last_number: next });
-    const fixture_id = `FX-${type.code}-${String(next).padStart(4, "0")}`;
+    await supabase.from("fixture_id_counters").upsert({ fixture_type_code: "000", last_number: next });
+    const fixture_id = `FX-000-${String(next).padStart(4, "0")}`;
 
     const { error } = await supabase.from("fixtures").insert({
       fixture_id,
       name: sanitizeText(name, 100),
-      model_number: model ? sanitizeText(model, 100) : null,
-      fixture_type_id: typeId,
+      customer: customer ? sanitizeText(customer, 100) : null,
+      customer_no: customerNo ? sanitizeText(customerNo, 100) : null,
+      ngp_no: ngpNo ? sanitizeText(ngpNo, 100) : null,
       home_slot_id: slotId,
       current_slot_id: slotId,
       weight_kg: weight ? Number(weight) : null,
@@ -1104,17 +1026,15 @@ function AddFixtureModal({ onClose, onDone }: { onClose: () => void; onDone: () 
     <Modal onClose={onClose} title="Add fixture">
       <div className="space-y-3 text-sm">
         <Field label="Fixture Name">
-          <input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Turning Fixture Type A" />
+          <input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Checking fixture" />
         </Field>
-        <Field label="Model Number">
-          <input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. NGF-2200, MT-4500-B" />
+        <Field label="Customer">
+          <input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="e.g. TML" />
         </Field>
-        <Field label="Type">
-          <select className="w-full rounded border border-border px-3 py-2 bg-background" value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-            <option value="">Select…</option>
-            {types.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
-          </select>
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Customer Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={customerNo} onChange={(e) => setCustomerNo(e.target.value)} placeholder="e.g. 5443466-1" /></Field>
+          <Field label="NGP Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={ngpNo} onChange={(e) => setNgpNo(e.target.value)} placeholder="e.g. 61792602" /></Field>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Weight (kg)"><input type="number" className="w-full rounded border border-border px-3 py-2 bg-background" value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
           <Field label="Description"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={500} value={desc} onChange={(e) => setDesc(e.target.value)} /></Field>
@@ -1134,7 +1054,9 @@ function AddFixtureModal({ onClose, onDone }: { onClose: () => void; onDone: () 
 
 function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLocation; onClose: () => void; onDone: () => void }) {
   const [name, setName] = useState(fixture.name);
-  const [model, setModel] = useState(fixture.model_number ?? "");
+  const [customer, setCustomer] = useState(fixture.customer ?? "");
+  const [customerNo, setCustomerNo] = useState(fixture.customer_no ?? "");
+  const [ngpNo, setNgpNo] = useState(fixture.ngp_no ?? "");
   const [weight, setWeight] = useState(fixture.weight_kg != null ? String(fixture.weight_kg) : "");
   const [desc, setDesc] = useState(fixture.description ?? "");
   const [status, setStatus] = useState(fixture.status);
@@ -1146,7 +1068,9 @@ function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLo
     setBusy(true);
     const { error } = await supabase.from("fixtures").update({
       name: sanitizeText(name, 100),
-      model_number: model ? sanitizeText(model, 100) : null,
+      customer: customer ? sanitizeText(customer, 100) : null,
+      customer_no: customerNo ? sanitizeText(customerNo, 100) : null,
+      ngp_no: ngpNo ? sanitizeText(ngpNo, 100) : null,
       weight_kg: weight ? Number(weight) : null,
       description: desc ? sanitizeText(desc, 500) : null,
       status,
@@ -1166,7 +1090,11 @@ function EditFixtureModal({ fixture, onClose, onDone }: { fixture: FixtureWithLo
     <Modal onClose={onClose} title="Edit fixture">
       <div className="space-y-3 text-sm">
         <Field label="Fixture Name"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={name} onChange={(e) => setName(e.target.value)} /></Field>
-        <Field label="Model Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={model} onChange={(e) => setModel(e.target.value)} placeholder="e.g. NGF-2200, MT-4500-B" /></Field>
+        <Field label="Customer"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="e.g. TML" /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Customer Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={customerNo} onChange={(e) => setCustomerNo(e.target.value)} placeholder="e.g. 5443466-1" /></Field>
+          <Field label="NGP Number"><input className="w-full rounded border border-border px-3 py-2 bg-background" maxLength={100} value={ngpNo} onChange={(e) => setNgpNo(e.target.value)} placeholder="e.g. 61792602" /></Field>
+        </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Weight (kg)"><input type="number" className="w-full rounded border border-border px-3 py-2 bg-background" value={weight} onChange={(e) => setWeight(e.target.value)} /></Field>
           <Field label="Status">
@@ -1232,9 +1160,9 @@ function BulkAssign({ onBack }: { onBack: () => void }) {
         <table className="w-full min-w-[760px] text-sm">
           <thead className="bg-secondary"><tr>
             <th className="text-left p-2">Fixture ID</th>
-            <th className="text-left p-2">Model</th>
             <th className="text-left p-2">Name</th>
-            <th className="text-left p-2">Type</th>
+            <th className="text-left p-2">Customer No.</th>
+            <th className="text-left p-2">NGP No.</th>
             <th className="text-left p-2">Current Location</th>
             <th></th>
           </tr></thead>
@@ -1244,9 +1172,9 @@ function BulkAssign({ onBack }: { onBack: () => void }) {
               return (
                 <tr key={f.id} className="border-t border-border">
                   <td className="p-2 font-mono text-xs">{f.fixture_id}</td>
-                  <td className="p-2">{f.model_number || <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2">{f.name}</td>
-                  <td className="p-2">{f.fixture_types?.name ?? "—"}</td>
+                  <td className="p-2">{f.customer_no || <span className="text-muted-foreground">—</span>}</td>
+                  <td className="p-2">{f.ngp_no || <span className="text-muted-foreground">—</span>}</td>
                   <td className="p-2">{path ?? <span className="text-red-600 text-xs">Not assigned</span>}</td>
                   <td className="p-2 text-right"><button onClick={() => setEditing(f)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Edit Location</button></td>
                 </tr>
@@ -1261,8 +1189,9 @@ function BulkAssign({ onBack }: { onBack: () => void }) {
           const path = locationPathText(f);
           return (
             <MobileCard key={f.id} title={f.name} subtitle={f.fixture_id}>
-              <MobileField label="Model">{f.model_number || "—"}</MobileField>
-              <MobileField label="Type">{f.fixture_types?.name ?? "—"}</MobileField>
+              <MobileField label="Customer">{f.customer || "—"}</MobileField>
+              <MobileField label="Customer No.">{f.customer_no || "—"}</MobileField>
+              <MobileField label="NGP No.">{f.ngp_no || "—"}</MobileField>
               <MobileField label="Current Location" full>{path ?? <span className="text-red-600">Not assigned</span>}</MobileField>
               <div className="col-span-2 flex justify-end pt-1">
                 <button onClick={() => setEditing(f)} className="text-xs px-3 py-1.5 rounded bg-primary text-primary-foreground">Edit Location</button>
@@ -1295,7 +1224,7 @@ function AssignSlotModal({ fixture, onClose, onSaved }: { fixture: FixtureWithLo
 
   return (
     <Modal onClose={onClose} title={`Assign location · ${fixture.fixture_id}`}>
-      <div className="text-sm text-muted-foreground mb-3">{fixture.name}{fixture.model_number ? ` · Model: ${fixture.model_number}` : ""}</div>
+      <div className="text-sm text-muted-foreground mb-3">{fixture.name}{fixture.ngp_no ? ` · NGP: ${fixture.ngp_no}` : ""}</div>
       <LocationCascader value={slotId} onChange={setSlotId} includeSlotId={originalSlot} />
       <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
         <button onClick={onClose} className="px-3 py-2 text-sm rounded border border-border">Close</button>

@@ -56,7 +56,7 @@ function PrintLabel() {
     ? { header: "RACK", title: rack!.name, subtitle: rack!.zones?.name ?? "Zone not assigned", code: rack!.id, loc: rack!.zones?.name ?? "Zone not assigned" }
     : type === "row"
       ? { header: "ROW", title: row!.name, subtitle: row!.racks?.name ?? "Rack not assigned", code: row!.id, loc: row!.racks?.name ?? "Rack not assigned" }
-      : { header: "FIXTURE", title: fx!.name, subtitle: fx!.model_number ? `Model: ${fx!.model_number}` : "", code: fx!.fixture_id, loc: locationPathText(fx) ?? "Location not assigned" };
+      : { header: "FIXTURE", title: fx!.name, subtitle: [fx!.customer_no ? `Customer No.: ${fx!.customer_no}` : "", fx!.ngp_no ? `NGP No.: ${fx!.ngp_no}` : ""].filter(Boolean).join(" | "), code: fx!.fixture_id, loc: locationPathText(fx) ?? "Location not assigned" };
   return (
     <div className="label-page">
       <style>{`

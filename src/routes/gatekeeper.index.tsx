@@ -307,7 +307,7 @@ function ActiveRequestCard({ req, scan1Done, onCancel }: { req: ReqRow | null; s
           <li key={i.id} className="rounded-md border border-border p-2">
             <div className="font-mono text-xs text-muted-foreground">{i.fixtures.fixture_id}</div>
             <div className="text-sm font-medium">{i.fixtures.name}</div>
-            <div className="text-xs text-muted-foreground">Model: {i.fixtures.model_number || "—"}</div>
+            <div className="text-xs text-muted-foreground">Customer No.: {i.fixtures.customer_no || "—"} · NGP: {i.fixtures.ngp_no || "—"}</div>
             <FixtureLocationBadge current_slot={i.fixtures.current_slot} className="mt-1" />
           </li>
         ))}
@@ -571,7 +571,7 @@ function ScanStation1({ active, onMatch, onWrong, done }: {
             <div className="flex items-center gap-2 font-bold"><CheckCircle2 className="h-5 w-5" /> CORRECT FIXTURE CONFIRMED</div>
             <div className="font-mono text-xs mt-2">{expected.fixture_id}</div>
             <div className="font-semibold">{expected.name}</div>
-            <div className="text-xs">Model: {expected.model_number || "—"}</div>
+            <div className="text-xs">Customer No.: {expected.customer_no || "—"} · NGP: {expected.ngp_no || "—"}</div>
             <div className="text-xs mt-1">{homeLocationPathText(expected) ?? locationPathText(expected) ?? "Location not assigned"}</div>
             {readyToMark && (
               <button onClick={() => onMatch(expected.id)} className="mt-3 w-full rounded-md bg-orange-500 px-4 py-3 text-sm font-bold text-white hover:bg-orange-600">
